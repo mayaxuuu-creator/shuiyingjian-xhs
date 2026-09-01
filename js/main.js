@@ -34,7 +34,7 @@
     return `rgb(${f(rgb[0])}, ${f(rgb[1])}, ${f(rgb[2])})`;
   }
   function currentInk() {
-    return state.palette.colors[state.colorIndex].rgb;
+    return state.palette.colors[state.colorIndex];   // 含 rgb 与 gain（松烟五墨增益）
   }
   function buildPalette() {
     paletteBox.innerHTML = '';
@@ -47,11 +47,12 @@
         state.colorIndex = i;
         paletteBox.querySelectorAll('.swatch').forEach(el => el.classList.remove('active'));
         btn.classList.add('active');
-        FLUID.setInk(c.rgb);
+        FLUID.setInk(c.rgb, c.gain);
       });
       paletteBox.appendChild(btn);
     });
-    FLUID.setInk(currentInk());
+    const cur = currentInk();
+    FLUID.setInk(cur.rgb, cur.gain);
   }
 
   function setTheme(palette) {
@@ -160,20 +161,39 @@
   setTheme(PALETTES.qinglv);
 
   // URL 演示钩子：?demo=shui-xuan-print 或 ?demo=qinglv-c2-lang-print
-  // 主题段：qinglv / shui；c数字 = 墨盘序号；纹样段：yun / lang / xuan；带 print = 自动覆纸
+  // 主题段：qinglv / shui；c数字 = 墨盘序号；rank = 五墨分层自检；
+  // 纹样段：yun / lang / xuan；带 print = 自动覆纸
   const demo = new URLSearchParams(location.search).get('demo');
   if (demo) {
     const themeKey = demo.includes('shui') ? 'shui' : 'qinglv';
-    const patName = demo.includes('lang') ? 'lang' : demo.includes('xuan') ? 'xuan' : 'yun';
-    const cMatch = demo.match(/c(\d)/);
-    const cIdx = cMatch ? Math.min(PALETTES[themeKey].colors.length - 1, +cMatch[1]) : PALETTES[themeKey].defaultIndex;
-    setTimeout(() => {
-      document.querySelector('[data-theme="' + themeKey + '"]').click();
-      document.querySelectorAll('.swatch')[cIdx].click();
-      FLUID.clear();
-      FLUID.queue(PATTERNS.make(patName, PALETTES[themeKey], PALETTES[themeKey].colors[cIdx].rgb));
-      if (demo.includes('print')) setTimeout(() => document.getElementById('printBtn').click(), 2800);
-    }, 450);
+    if (demo.includes('rank')) {
+      // 自检：松烟五墨（焦浓重淡清）一字排开，亮度应肉眼可辨
+      setTimeout(() => {
+        document.querySelector('[data-theme="' + themeKey + '"]').click();
+        FLUID.clear();
+        const names = ['焦墨', '浓墨', '重墨', '淡墨', '清墨'];
+        names.forEach((name, i) => {
+          const c = PALETTES[themeKey].colors.find(k => k.name === name);
+          if (!c) return;
+          FLUID.setInk(c.rgb, c.gain);
+          const m = Math.max(c.rgb[0], c.rgb[1], c.rgb[2]);
+          const g = c.gain || 1;
+          FLUID.queue([{ delay: i * 120, x: 0.15 + 0.175 * i, y: 0.5, dx: 0, dy: 0,
+            color: [0.55 * g * c.rgb[0] / m, 0.55 * g * c.rgb[1] / m, 0.55 * g * c.rgb[2] / m], radius: 1.3 }]);
+        });
+      }, 450);
+    } else {
+      const patName = demo.includes('lang') ? 'lang' : demo.includes('xuan') ? 'xuan' : 'yun';
+      const cMatch = demo.match(/c(\d)/);
+      const cIdx = cMatch ? Math.min(PALETTES[themeKey].colors.length - 1, +cMatch[1]) : PALETTES[themeKey].defaultIndex;
+      setTimeout(() => {
+        document.querySelector('[data-theme="' + themeKey + '"]').click();
+        document.querySelectorAll('.swatch')[cIdx].click();
+        FLUID.clear();
+        FLUID.queue(PATTERNS.make(patName, PALETTES[themeKey], PALETTES[themeKey].colors[cIdx].rgb));
+        if (demo.includes('print')) setTimeout(() => document.getElementById('printBtn').click(), 2800);
+      }, 450);
+    }
   } else {
     // 迎客墨：开场自动演半段云纹，第一眼就有东西看
     setTimeout(() => FLUID.queue(PATTERNS.make('yun', state.palette, currentInk()).slice(0, 34)), 700);

@@ -454,11 +454,10 @@ window.FLUID = (function () {
   const pointers = [pointerPrototype()];
   let currentInk = [0.3, 0.9, 1.0];
 
-  function setInk(rgb) {
-    // 归一化到最大分量，保证深色墨也有足够注入亮度
+  function setInk(rgb, gain) {
+    // 归一化色相比例；亮度由 gain 决定（松烟五墨靠 gain 分层，归一会抹掉浓淡差）
     const m = Math.max(rgb[0], rgb[1], rgb[2]) || 1;
-    let s = rgb[3] || 0.78;   // rgb[3] 可选强度
-    if (theme.key === 'shui') s *= 0.6;   // 淡色入黑水，防过曝
+    let s = gain || 0.78;   // 未声明增益的颜色（青绿盘）按旧标准 0.78
     currentInk = [rgb[0] / m * s, rgb[1] / m * s, rgb[2] / m * s];
   }
 

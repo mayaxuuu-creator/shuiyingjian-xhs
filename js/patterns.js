@@ -2,6 +2,7 @@
    一键编排的"墨序"：位置/时机/力度预设，保证出图下限。
    配色规则（Maya 定）：主调 = 用户当前选中色，辅色 = 每次随机另择一款，
    点睛固定（金泥/朱砂）——构图骨架不变，每次点击换装。
+   松烟五墨带显式增益（gain），亮度分层在纹样里同样生效。
    事件格式：{ delay, x, y(左上原点0~1), dx, dy(速度，GL空间：正=向上), color, radius } */
 
 window.PATTERNS = (function () {
@@ -9,32 +10,33 @@ window.PATTERNS = (function () {
 
   const rnd = (a, b) => a + Math.random() * (b - a);
 
-  // 归一化到最大分量（深色墨不亏亮度）
+  // 归一化色相比例（保留亮度信息：增益单独走 gain 通道）
   function norm(rgb) {
     const m = Math.max(rgb[0], rgb[1], rgb[2]) || 1;
     return [rgb[0] / m, rgb[1] / m, rgb[2] / m];
   }
 
   /* 配色方案：primary=用户选中色；accent=随机辅色（每次点击不同）；
-     spark=点睛（盘里有金泥/朱砂就固定用，纯水墨盘退到辅色） */
-  function scheme(palette, primaryRgb) {
-    const key = norm(primaryRgb).join();
-    const others = palette.colors.filter(c => norm(c.rgb).join() !== key);
-    const accent = others.length ? others[(Math.random() * others.length) | 0].rgb : primaryRgb;
-    const sparkC = palette.colors.find(c => c.name === '金泥')
+     点睛固定（金泥/朱砂）。每个角色保留各自的 gain（松烟五墨的浓淡由此生效） */
+  function scheme(palette, primaryEntry) {
+    const primaryE = primaryEntry || palette.colors[palette.defaultIndex];
+    const others = palette.colors.filter(c => c !== primaryE);
+    const accentE = others.length ? others[(Math.random() * others.length) | 0] : primaryE;
+    const sparkE = palette.colors.find(c => c.name === '金泥')
       || palette.colors.find(c => c.name === '朱砂')
-      || { rgb: accent };
+      || accentE;
+    const role = e => ({ rgb: norm(e.rgb), gain: e.gain || 1 });
     return {
-      primary: norm(primaryRgb),
-      accent: norm(accent),
-      spark: norm(sparkC.rgb),
-      damp: palette.key === 'shui' ? 0.55 : 1.0,   // 松烟淡色入黑水，压一档防过曝
+      primary: role(primaryE),
+      accent: role(accentE),
+      spark: role(sparkE),
+      damp: palette.key === 'shui' ? 1.0 : 1.0,   // 松烟防过曝已由各色 gain 校准
     };
   }
   function ink(s, color, strength, jitter) {
     const j = jitter === undefined ? 1 : jitter;
-    const v = strength * j * s.damp;
-    return [color[0] * v, color[1] * v, color[2] * v];
+    const v = strength * j * s.damp * color.gain;
+    return [color.rgb[0] * v, color.rgb[1] * v, color.rgb[2] * v];
   }
 
   /* 云纹：横贯画面的一条流云带 + 上方淡云回声 + 下方薄雾 */
@@ -143,9 +145,9 @@ window.PATTERNS = (function () {
 
   const registry = { yun, lang, xuan };
   return {
-    make(name, palette, primaryRgb) {
+    make(name, palette, primaryEntry) {
       const fn = registry[name] || yun;
-      return fn(scheme(palette, primaryRgb || palette.colors[palette.defaultIndex].rgb));
+      return fn(scheme(palette, primaryEntry));
     },
     names: Object.keys(registry),
   };
