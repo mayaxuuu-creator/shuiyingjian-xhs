@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#101614">
+<title>水影笺 · 把千里江山搅进水里</title>
+<link rel="stylesheet" href="./css/main.css?v=1.3">
+<link rel="stylesheet" href="./fonts/wenkai.css?v=1.3">
+</head>
+<body>
+
+<!-- 页面水印（衬底，营造卷轴感） -->
+<div id="watermark" aria-hidden="true">水影笺</div>
+
+<div id="stage">
+  <!-- 顶部留空：让位给容器状态栏 / 返回 / 分享胶囊 -->
+
+  <main id="poolRow">
+    <div id="brandStrip" aria-hidden="true">
+      <span class="brand-dot"></span>
+      <span class="brand-vert">水影笺</span>
+      <span class="brand-sub-vert">以水为纸 · 滴墨成笺</span>
+    </div>
+
+    <div id="poolWrap">
+      <canvas id="pool"></canvas>
+      <div id="poolCorners" aria-hidden="true"></div>
+      <div id="hint">点一点 · 滴墨　　划一划 · 吹墨　　按住 · 渗墨</div>
+
+      <!-- 主题切换：垂在池沿的两枚签条 -->
+      <div id="themeSwitch">
+        <button class="theme-tab active" data-theme="qinglv"><i></i>青绿</button>
+        <button class="theme-tab" data-theme="shui"><i></i>松烟</button>
+      </div>
+    </div>
+  </main>
+
+  <footer id="dock">
+    <div class="dock-label"><span>择 墨</span></div>
+    <div id="palette"></div>
+    <div id="tools">
+      <div class="tool-group">
+        <button class="tool-btn" data-pattern="yun">云纹</button>
+        <button class="tool-btn" data-pattern="lang">浪纹</button>
+        <button class="tool-btn" data-pattern="xuan">漩涡</button>
+      </div>
+      <div class="tool-group">
+        <button class="tool-btn ghost" id="clearBtn">清池</button>
+        <button class="cta" id="printBtn">覆纸<br>拓印</button>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div id="printOverlay" class="hidden">
+  <div id="sheetCaption"></div>
+  <div id="paperSheet"><canvas id="paperCanvas"></canvas></div>
+  <div id="resultBar" class="hidden">
+    <button class="tool-btn ghost" id="againBtn">再拓一张</button>
+    <button class="cta" id="saveBtn">保存图片</button>
+  </div>
+  <div id="shareCard" class="hidden">
+    <div class="share-title" id="shareTitle"></div>
+    <div class="share-body" id="shareBody"></div>
+    <div class="share-tags" id="shareTags"></div>
+    <div class="share-actions">
+      <button class="tool-btn small" id="shareShuffle">换一版</button>
+      <div class="share-hint">长按选中上方文字 · 即可复制去发笔记</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="./js/palette.js?v=1.3"></script>
+<script src="./js/fluid.js?v=1.3"></script>
+<script src="./js/patterns.js?v=1.3"></script>
+<script src="./js/rubbing.js?v=1.3"></script>
+<script src="./js/mind.js?v=1.3"></script>
+<script src="./js/main.js?v=1.3"></script>
+</body>
+</html>
