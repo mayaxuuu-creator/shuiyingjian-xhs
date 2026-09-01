@@ -7,6 +7,6 @@
 - 内置霞鹜文楷字体子集（OFL-1.1，749 用字 381KB），成笺文字同步楷体
 - 绫裱纹理背景 / 砚池四角描金 / 垂签主题切换 / 朱砂方章 CTA
 
-发布产物：`水影笺_小红书_v1.3.zip`（按官方 minitool-zip-builder 规范打包，index.html 在根）。
+发布产物：`水影笺_小红书_v1.5.zip`（按官方 minitool-zip-builder 规范打包，index.html 在根；保存直存相册/文件已真机实测）。
 
 演示钩子：`?demo=shui-xuan-print` 自动走完整流程。
