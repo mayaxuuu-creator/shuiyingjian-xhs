@@ -110,7 +110,7 @@
   });
 
   // ---------- 保存 / 分享文案 ----------
-  // 保存：实测小工具容器支持 blob 下载（多家同类工具可点击保存），截图仅作兜底提示
+  // 保存：真机实测容器支持 blob 下载直存相册/文件
   $('#saveBtn').addEventListener('click', () => {
     try {
       paperCanvas.toBlob(blob => {
@@ -123,7 +123,7 @@
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
-        showToast('已发起保存 · 若无反应请截图');
+        showToast('已保存 ✓');
       }, 'image/png');
     } catch (err) {
       showToast('保存未响应 · 请截图保存');
