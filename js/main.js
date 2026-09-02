@@ -110,25 +110,34 @@
   });
 
   // ---------- 保存 / 分享文案 ----------
-  // 保存：真机实测容器支持 blob 下载直存相册/文件
+  // 保存（按官方 1.4.0 JSBridge 规范）：
+  // 容器内 a[download]/blob 下载被静默吞掉，唯一正路是 window.xhs.miniTool.saveImageToPhotosAlbum
+  // （filePath 直接吃 base64 data:uri，首次调用弹相册授权，需用户手势触发）
   $('#saveBtn').addEventListener('click', () => {
-    try {
-      paperCanvas.toBlob(blob => {
-        if (!blob) { showToast('保存未响应 · 请截图保存'); return; }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '水影笺_' + state.mind.name + '_' + state.number + '.png';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-        showToast('已保存 ✓');
-      }, 'image/png');
-    } catch (err) {
-      showToast('保存未响应 · 请截图保存');
-    }
+    saveSheet();
   });
+
+  async function saveSheet() {
+    const bridge = window.xhs && window.xhs.miniTool;
+    const dataUrl = paperCanvas.toDataURL('image/png');
+    if (bridge && typeof bridge.saveImageToPhotosAlbum === 'function') {
+      try {
+        await bridge.saveImageToPhotosAlbum({ filePath: dataUrl });
+        showToast('已保存到相册 ✓');
+      } catch (err) {
+        showToast('保存未完成 · 请截图保存');
+      }
+      return;
+    }
+    // 非容器环境（网页/预览链接）：浏览器下载兜底；容器内此路不通，只能走上方桥接
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = '水影笺_' + state.mind.name + '_' + state.number + '.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showToast('已保存 ✓');
+  }
 
   function renderShare() {
     state.share = MIND.shareCopy(state.number, state.mind, state.poem);

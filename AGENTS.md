@@ -10,7 +10,7 @@ python3 /tmp/nocache_server.py 8138 .   # 任意静态服务器即可，必须�
 
 ## 技术栈与约束
 - 纯静态 HTML/CSS/JS，零依赖零构建；容器 CSP 禁内联脚本/行内事件，全外置 + addEventListener
-- 离线合规（官方 minitool-zip-builder 规范）：禁网络请求/剪贴板/文件下载之外的容器能力；保存走 blob 下载（真机实测可用），复制走可选文字
+- 离线合规（官方 minitool-zip-builder **1.4.0** 规范）：禁网络请求/剪贴板/a[download]（容器会静默吞掉）；保存必须走 JSBridge `window.xhs.miniTool.saveImageToPhotosAlbum({ filePath: base64 dataUri })`，复制走可选文字
 - 内置霞鹜文楷子集（fonts/，OFL-1.1，OFL.json 随包）；字体子集重建脚本 /tmp/wenkai/build_font_subset.py（临时，含构建思路）
 
 ## 目录与同源约定（最重要）
