@@ -149,6 +149,29 @@
     renderShare();
   });
 
+  // 发笔记：容器桥接 postNote，带当前成笺图 + 当前文案（标题已自带「水影笺」）
+  $('#postBtn').addEventListener('click', () => postNoteDraft());
+
+  async function postNoteDraft() {
+    const bridge = window.xhs && window.xhs.miniTool;
+    if (!(bridge && typeof bridge.postNote === 'function')) {
+      showToast('在小红书内打开即可一键发笔记');
+      return;
+    }
+    try {
+      const dataUrl = paperCanvas.toDataURL('image/png');
+      await bridge.postNote({
+        title: state.share.title,                       // ≤20 字，含「水影笺」
+        content: state.share.body + '\n\n' + state.share.tags,
+        pageType: 'photo_publish',
+        mediaInfo: { image_resources: [{ url: dataUrl }] },
+      });
+      showToast('已调起发布 · 配图文案已带好 ✓');
+    } catch (err) {
+      showToast('发布未完成 · 可长按复制文案');
+    }
+  }
+
   function showToast(msg) {
     toast.textContent = msg;
     toast.classList.add('show');

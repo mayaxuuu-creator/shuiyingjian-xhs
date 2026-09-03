@@ -91,26 +91,26 @@ window.MIND = (function () {
     return { name, line };
   }
 
-  /* ---------- 分享文案（三套口吻随机） ---------- */
+  /* ---------- 分享文案（三套口吻随机；标题均自带「水影笺」，postNote 标题上限 20 字） ---------- */
   function templates(num, mind, poemText, poet) {
     return [
       {
-        title: '把千里江山搅进水里，捞到一张「' + mind.name + '」',
+        title: '水影笺｜把千里江山搅进水里',
         body: '第 ' + num + ' 号流沙笺，全球仅此一张🌊\n'
-          + '墨纹读心：' + mind.line + '\n'
+          + '心相「' + mind.name + '」——' + mind.line + '\n'
           + '题：「' + poemText + '」——' + poet + '\n'
           + '你也来拓一张？评论区交出你的笺👇',
         tags: '#水影笺 #千里江山 #国风 #解压小游戏 #非遗之美',
       },
       {
-        title: '今日心相：' + mind.name,
+        title: '水影笺读心 · ' + mind.name,
         body: '玩了个拓印小笺，搅出来的墨纹会读心。\n'
           + '它说：' + mind.line + '\n'
           + '（第 ' + num + ' 号，全球仅此一张）',
         tags: '#今日心相 #水影笺 #国风美学 #摸鱼神器',
       },
       {
-        title: '唐人的流沙笺，被我复活了',
+        title: '水影笺 · 复活唐人的流沙笺',
         body: '一滴墨、一池水、一张纸。\n'
           + '古人玩的浪漫，我把它做成了小游戏。\n'
           + '这张是「' + mind.name + '」——' + mind.line + '\n'
