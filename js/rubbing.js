@@ -57,6 +57,8 @@ window.RUBBING = (function () {
       sealFace: 'rgba(158, 42, 32, 0.95)',
       sealText: 'rgba(246, 239, 220, 0.95)',
       sealInner: 'rgba(246, 239, 220, 0.5)',
+      fleckR: 0.55,   // 磁青洒金 = 细小星子（与大瓣桂雨区分）
+      fleckA: 0.6,
     },
   };
 
@@ -123,11 +125,12 @@ window.RUBBING = (function () {
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'source-over';
 
-    // 4. 洒金（磁青上即描金点，如星光）
+    // 4. 洒金（宣纸=金箔；磁青=细小星子，避免和桂雨纹样混淆）
+    const fleckR = mat.fleckR || 1, fleckA = mat.fleckA || 1;
     for (let i = 0; i < 130; i++) {
       const x = 30 + Math.random() * (W - 60), y = 30 + Math.random() * (H - 60);
-      const r = 1.0 + Math.random() * 3.0;
-      ctx.globalAlpha = 0.6 + Math.random() * 0.38;
+      const r = (0.7 + Math.random() * 1.8) * fleckR;
+      ctx.globalAlpha = (0.45 + Math.random() * 0.3) * fleckA;
       ctx.fillStyle = mat.golds[(Math.random() * mat.golds.length) | 0];
       ctx.save();
       ctx.translate(x, y);
@@ -137,9 +140,9 @@ window.RUBBING = (function () {
       ctx.fill();
       ctx.restore();
     }
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < (mat.fleckR < 1 ? 5 : 14); i++) {
       const x = 40 + Math.random() * (W - 80), y = 40 + Math.random() * (H - 80);
-      ctx.globalAlpha = 0.85;
+      ctx.globalAlpha = 0.6 * fleckA;
       ctx.fillStyle = mat.golds[(Math.random() * 2) | 0];
       ctx.save();
       ctx.translate(x, y);
@@ -149,57 +152,59 @@ window.RUBBING = (function () {
     }
     ctx.globalAlpha = 1.0;
 
-    // 5. 题签（竖排诗笺；磁青 = 描金签）
-    const parts = poem.text.split('，');
-    const cols = parts.length;
-    const maxChars = Math.max(...parts.map(s => s.length));
-    const slipW = cols === 2 ? 108 : 66;
-    const slipH = maxChars * 42 + 74;
-    const sx = W - 56 - slipW, sy = 128;
-    ctx.fillStyle = mat.slipBg;
-    ctx.strokeStyle = mat.slipBorder;
-    roundRect(ctx, sx, sy, slipW, slipH, 5);
-    ctx.fill(); ctx.stroke();
-    ctx.fillStyle = mat.slipDot;
-    ctx.beginPath();
-    ctx.arc(sx + slipW / 2, sy + 16, 3.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = mat.inkText;
-    ctx.font = '26px ' + SERIF;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const colXs = cols === 2 ? [sx + slipW * 0.72, sx + slipW * 0.28] : [sx + slipW / 2];
-    parts.forEach((part, ci) => {
-      const chars = part.split('');
-      const startY = sy + 52;
-      for (let k = 0; k < chars.length; k++) {
-        ctx.fillText(chars[k], colXs[ci], startY + k * 42);
-      }
-    });
-    ctx.font = '15px ' + SERIF;
-    ctx.fillStyle = mat.poetColor;
-    ctx.fillText(poem.poet, cols === 2 ? colXs[1] : colXs[0], sy + 52 + maxChars * 42 + 2);
+    // 5. 题签（竖排诗笺；磁青 = 描金签；素笺模式省略）
+    if (!pure) {
+      const parts = poem.text.split('，');
+      const cols = parts.length;
+      const maxChars = Math.max(...parts.map(s => s.length));
+      const slipW = cols === 2 ? 108 : 66;
+      const slipH = maxChars * 42 + 74;
+      const sx = W - 56 - slipW, sy = 128;
+      ctx.fillStyle = mat.slipBg;
+      ctx.strokeStyle = mat.slipBorder;
+      roundRect(ctx, sx, sy, slipW, slipH, 5);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = mat.slipDot;
+      ctx.beginPath();
+      ctx.arc(sx + slipW / 2, sy + 16, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = mat.inkText;
+      ctx.font = '26px ' + SERIF;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const colXs = cols === 2 ? [sx + slipW * 0.72, sx + slipW * 0.28] : [sx + slipW / 2];
+      parts.forEach((part, ci) => {
+        const chars = part.split('');
+        const startY = sy + 52;
+        for (let k = 0; k < chars.length; k++) {
+          ctx.fillText(chars[k], colXs[ci], startY + k * 42);
+        }
+      });
+      ctx.font = '15px ' + SERIF;
+      ctx.fillStyle = mat.poetColor;
+      ctx.fillText(poem.poet, cols === 2 ? colXs[1] : colXs[0], sy + 52 + maxChars * 42 + 2);
+    }
 
-    // 6. 心相签（左上小竖签）
+    // 6. 心相签（左上小竖签；随材质配色，磁青为描金签）
     if (!pure && mind && mind.name) {
       const nw = 58;
       const nh = 40 + mind.name.length * 30 + 16;
       const nx = 64, ny = 128;
-      ctx.fillStyle = 'rgba(246, 239, 220, 0.88)';
-      ctx.strokeStyle = 'rgba(74, 64, 52, 0.4)';
+      ctx.fillStyle = mat.slipBg;
+      ctx.strokeStyle = mat.slipBorder;
       roundRect(ctx, nx, ny, nw, nh, 4);
       ctx.fill(); ctx.stroke();
-      ctx.fillStyle = 'rgba(165, 50, 42, 0.85)';
+      ctx.fillStyle = mat.slipDot;
       ctx.beginPath();
       ctx.arc(nx + nw / 2, ny + 14, 2.8, 0, Math.PI * 2);
       ctx.fill();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = '13px ' + SERIF;
-      ctx.fillStyle = 'rgba(46, 42, 36, 0.55)';
+      ctx.fillStyle = mat.inkDim;
       ctx.fillText('心相', nx + nw / 2, ny + 32);
       ctx.font = '600 22px ' + SERIF;
-      ctx.fillStyle = '#2e2a24';
+      ctx.fillStyle = mat.inkText;
       const mchars = mind.name.split('');
       mchars.forEach((ch, k) => {
         ctx.fillText(ch, nx + nw / 2, ny + 56 + k * 30);

@@ -486,12 +486,13 @@ body {
   #watermark { font-size: 48px; right: 2vw; }
 }
 
-/* ---------- 成笺/素笺切换 ---------- */
+/* ---------- 成笺/素笺切换（图上方居中） ---------- */
 #modeSeg {
   display: flex;
   border: 1px solid rgba(233, 226, 208, 0.22);
   border-radius: 999px;
   overflow: hidden;
+  margin-bottom: 10px;
 }
 #modeSeg button {
   appearance: none;

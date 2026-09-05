@@ -1,13 +1,12 @@
 /* 水影笺 · 陈列室（本地作品库）
-   IndexedDB 存 JPEG dataURL（省空间，可存数十张，上限 60 张 FIFO）；
-   展墙视图：深色展墙网格 + 展签，点开看大图可再保存/发笔记/删除。
-   数据仅存于本机设备。 */
+   首选 IndexedDB；浏览器受限（隐私模式/内置浏览器禁用）时自动降级 localStorage（上限 8 张）。
+   展墙视图：深色展墙网格 + 展签，点开看大图可再保存/发笔记/删除。数据仅存于本机设备。 */
 
 window.GALLERY = (function () {
   'use strict';
 
-  const DB_NAME = 'syj_gallery_v1', STORE = 'works', CAP = 60;
-  let dbPromise = null;
+  const DB_NAME = 'syj_gallery_v1', STORE = 'works', CAP = 60, LS_CAP = 8, LS_KEY = 'syj_gallery_ls';
+  let dbPromise = null, idbBroken = false;
 
   function open() {
     if (dbPromise) return dbPromise;
@@ -15,46 +14,85 @@ window.GALLERY = (function () {
       const rq = indexedDB.open(DB_NAME, 1);
       rq.onupgradeneeded = () => rq.result.createObjectStore('works', { keyPath: 'id' });
       rq.onsuccess = () => resolve(rq.result);
-      rq.onerror = () => reject(rq.error);
+      rq.onerror = () => reject(rq.error || new Error('IndexedDB open failed'));
+      rq.onblocked = () => reject(new Error('IndexedDB blocked'));
     });
     return dbPromise;
   }
 
-  async function add(work) {
-    const db = await open();
-    await new Promise((res, rej) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put(work);
-      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
-    });
-    // FIFO 裁剪
-    const all = await all();
-    if (all.length > CAP) {
-      const oldest = all.slice(CAP).map(w => w.id);
-      for (const id of oldest) await remove(id);
+  /* ---------- 存储层：IDB 优先，失败自动落到 localStorage ---------- */
+  async function put(work) {
+    if (!idbBroken) {
+      try {
+        const db = await open();
+        await new Promise((res, rej) => {
+          const tx = db.transaction(STORE, 'readwrite');
+          tx.objectStore(STORE).put(work);
+          tx.oncomplete = res; tx.onerror = () => rej(tx.error || new Error('IDB put failed')); tx.onabort = () => rej(tx.error || new Error('IDB aborted'));
+        });
+        return 'idb';
+      } catch (e) {
+        idbBroken = true;   // 本会话内不再尝试 IDB
+      }
     }
+    // localStorage 兜底（容量小，限 8 张）
+    const list = lsAll();
+    const idx = list.findIndex(w => w.id === work.id);
+    if (idx >= 0) list[idx] = work; else list.unshift(work);
+    while (list.length > LS_CAP) list.pop();
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(list));
+    } catch (e) {
+      throw new Error('本地存储已满');
+    }
+    return 'ls';
+  }
+
+  function lsAll() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { return []; }
   }
 
   async function all() {
-    const db = await open();
-    return new Promise((res, rej) => {
-      const rq = db.transaction(STORE).objectStore(STORE).getAll();
-      rq.onsuccess = () => res((rq.result || []).sort((a, b) => b.ts - a.ts));
-      rq.onerror = () => rej(rq.error);
-    });
+    if (!idbBroken) {
+      try {
+        const db = await open();
+        return await new Promise((res, rej) => {
+          const rq = db.transaction(STORE).objectStore(STORE).getAll();
+          rq.onsuccess = () => res((rq.result || []).sort((a, b) => b.ts - a.ts));
+          rq.onerror = () => rej(rq.error || new Error('IDB read failed'));
+        });
+      } catch (e) {
+        idbBroken = true;
+      }
+    }
+    return lsAll().sort((a, b) => b.ts - a.ts);
   }
 
   async function remove(id) {
-    const db = await open();
-    return new Promise((res, rej) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).delete(id);
-      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
-    });
+    if (!idbBroken) {
+      try {
+        const db = await open();
+        return await new Promise((res, rej) => {
+          const tx = db.transaction(STORE, 'readwrite');
+          tx.objectStore(STORE).delete(id);
+          tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+        });
+      } catch (e) { /* 落到 LS 删除 */ }
+    }
+    localStorage.setItem(LS_KEY, JSON.stringify(lsAll().filter(w => w.id !== id)));
+  }
+
+  async function add(work) {
+    const store = await put(work);
+    if (store === 'idb') {
+      const list = await all();
+      if (list.length > CAP) for (const w of list.slice(CAP)) await remove(w.id);
+    }
+    return store;
   }
 
   /* ---------- 展墙视图 ---------- */
-  let view = null, detailId = null;
+  let view = null;
   let onSave = null, onPost = null;   // 由 main.js 注入（桥接保存/发笔记）
 
   function ensureView() {
@@ -94,7 +132,6 @@ window.GALLERY = (function () {
   }
 
   function showDetail(w) {
-    detailId = w.id;
     const detail = view.querySelector('.gv-detail');
     const grid = view.querySelector('.gv-grid');
     grid.classList.add('hidden');

@@ -292,6 +292,8 @@ window.FLUID = (function () {
     uniform float uVignette;
     uniform float uFiber;
     uniform float uPigment;
+    uniform float uInkGain;
+    uniform float uInkLift;
     uniform float uMoon;
     uniform float uAspect;
     float hash (vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -303,7 +305,9 @@ window.FLUID = (function () {
         float total = dye.r + dye.g + dye.b;
         vec3 chroma = dye / max(total, 1e-4);
         float brightness = 0.22 + 0.78 * exp(-total * 1.1);
-        col = chroma * brightness * 1.3;
+        col = chroma * brightness * uInkGain;   // 深色材质（磁青）用更高增益，墨纹才浮得出纸面
+        col = pow(max(col, 0.0), vec3(0.72));   // 月光提亮：上提中间调
+        col += vec3(uInkLift);                   // 月色环境光
         density = total;
       } else {
         float lum = dot(dye, vec3(0.299, 0.587, 0.114));
@@ -321,8 +325,8 @@ window.FLUID = (function () {
         // 月轮：磁盘面 + 暖金光晕，画在纸底（墨层之下——墨卷过月，云破月来）
         vec2 mp = vec2((vUv.x - 0.70) * uAspect, vUv.y - 0.72);
         float d = length(mp);
-        float disk = smoothstep(0.085, 0.074, d) * 0.40;
-        float halo = exp(-d * 6.5) * 0.20;
+        float disk = smoothstep(0.085, 0.074, d) * 0.55;
+        float halo = exp(-d * 6.5) * 0.28;
         paper += vec3(1.0, 0.92, 0.72) * ((disk + halo) * uMoon);
       }
       vec3 ink = uPigment > 0.5 ? col : col + paper * 0.08;
@@ -415,10 +419,12 @@ window.FLUID = (function () {
   }
 
   // ---------- 主题 ----------
-  const theme = { key: 'qinglv', moon: 0, pool: [0.05, 0.085, 0.09], gain: 1.0, shimmer: 1.0, curl: config.CURL, fiber: 0.028 };
+  const theme = { key: 'qinglv', moon: 0, inkGain: 1.3, inkLift: 0.0, pool: [0.05, 0.085, 0.09], gain: 1.0, shimmer: 1.0, curl: config.CURL, fiber: 0.028 };
   function setTheme(palette) {
     theme.key = palette.key;
     theme.moon = palette.moon || 0;
+    theme.inkGain = palette.inkGain || 1.3;
+    theme.inkLift = palette.inkLift || 0.0;
     theme.pool = palette.pool;
     theme.shimmer = palette.shimmer;
     theme.curl = palette.key === 'shui' ? 6 : 9;
@@ -622,6 +628,8 @@ window.FLUID = (function () {
     gl.uniform1f(displayProgram.uniforms.uPigment, paperOverride ? 1.0 : 0.0);
     gl.uniform1f(displayProgram.uniforms.uMoon, theme.moon || 0.0);
     gl.uniform1f(displayProgram.uniforms.uAspect, aspectRatio);
+    gl.uniform1f(displayProgram.uniforms.uInkGain, theme.inkGain || 1.3);
+    gl.uniform1f(displayProgram.uniforms.uInkLift, theme.inkLift || 0.0);
     blit(target);
   }
 

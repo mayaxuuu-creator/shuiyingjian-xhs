@@ -243,8 +243,8 @@
       theme: state.palette.label,
       ts: Date.now(),
       dataUrl: paperCanvas.toDataURL('image/jpeg', 0.86),
-    }).then(() => showToast('已收入陈列室 ✓'))
-      .catch(() => showToast('收藏失败 · 稍后再试'));
+    }).then(store => showToast(store === 'ls' ? '已收入陈列室 ✓（本机轻量存储）' : '已收入陈列室 ✓'))
+      .catch(err => showToast('收藏失败 · ' + (err && err.message ? err.message.slice(0, 24) : '请稍后再试')));
   });
 
   // ---------- 轻提示 ----------
