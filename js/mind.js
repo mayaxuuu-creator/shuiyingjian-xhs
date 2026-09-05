@@ -91,6 +91,84 @@ window.MIND = (function () {
     return { name, line };
   }
 
+  /* ---------- 诗库（唐人名句为主，公版；h=心相色相，m=月夜，a=秋） ---------- */
+  const POEM_LIBRARY = [
+    // 青 · 水月江夜
+    { t: '春江潮水连海平', p: '张若虚', h: 'blue' },
+    { t: '海上明月共潮生', p: '张若虚', h: 'blue', m: 1 },
+    { t: '月落乌啼霜满天', p: '张继', h: 'blue', m: 1, a: 1 },
+    { t: '秋水共长天一色', p: '王勃', h: 'blue' },
+    { t: '唯见长江天际流', p: '李白', h: 'blue' },
+    { t: '孤帆远影碧空尽', p: '李白', h: 'blue' },
+    { t: '烟波江上使人愁', p: '崔颢', h: 'blue' },
+    { t: '曾经沧海难为水', p: '元稹', h: 'blue' },
+    { t: '月涌大江流', p: '杜甫', h: 'blue', m: 1 },
+    { t: '海上生明月', p: '张九龄', h: 'blue', m: 1 },
+    { t: '月出惊山鸟', p: '王维', h: 'blue', m: 1 },
+    { t: '湖光秋月两相和', p: '刘禹锡', h: 'blue', m: 1, a: 1 },
+    { t: '野旷天低树，江清月近人', p: '孟浩然', h: 'blue', m: 1 },
+    { t: '天门中断楚江开', p: '李白', h: 'blue' },
+    // 绿 · 山川草木
+    { t: '春来江水绿如蓝', p: '白居易', h: 'green' },
+    { t: '千里莺啼绿映红', p: '杜牧', h: 'green' },
+    { t: '两岸青山相对出', p: '李白', h: 'green' },
+    { t: '春风又绿江南岸', p: '王安石', h: 'green' },
+    { t: '万条垂下绿丝绦', p: '贺知章', h: 'green' },
+    { t: '草色遥看近却无', p: '韩愈', h: 'green' },
+    { t: '青山一道同云雨', p: '王昌龄', h: 'green' },
+    { t: '春色满园关不住', p: '叶绍翁', h: 'green' },
+    { t: '淡妆浓抹总相宜', p: '苏轼', h: 'green' },
+    { t: '空山新雨后', p: '王维', h: 'green' },
+    { t: '山外青山楼外楼', p: '林升', h: 'green' },
+    { t: '绿树阴浓夏日长', p: '高骈', h: 'green' },
+    // 红 · 霞火花朱
+    { t: '日出江花红胜火', p: '白居易', h: 'red' },
+    { t: '霜叶红于二月花', p: '杜牧', h: 'red', a: 1 },
+    { t: '映日荷花别样红', p: '杨万里', h: 'red' },
+    { t: '人面桃花相映红', p: '崔护', h: 'red' },
+    { t: '半江瑟瑟半江红', p: '白居易', h: 'red' },
+    { t: '桃花潭水深千尺', p: '李白', h: 'red' },
+    { t: '日照香炉生紫烟', p: '李白', h: 'red' },
+    { t: '落霞与孤鹜齐飞', p: '王勃', h: 'red' },
+    { t: '朱雀桥边野草花', p: '刘禹锡', h: 'red' },
+    // 金 · 金桂秋实
+    { t: '稻花香里说丰年', p: '辛弃疾', h: 'gold' },
+    { t: '满园花菊郁金黄', p: '白居易', h: 'gold', a: 1 },
+    { t: '一年好景君须记', p: '苏轼', h: 'gold', a: 1 },
+    { t: '金风玉露一相逢', p: '秦观', h: 'gold', m: 1, a: 1 },
+    { t: '停车坐爱枫林晚', p: '杜牧', h: 'gold', a: 1 },
+    { t: '黄河远上白云间', p: '王之涣', h: 'gold' },
+    { t: '九曲黄河万里沙', p: '刘禹锡', h: 'gold' },
+    { t: '桂子月中落，天香云外飘', p: '宋之问', h: 'gold', m: 1 },
+    // 烟 · 烟岚闲云
+    { t: '千山鸟飞绝', p: '柳宗元', h: 'neutral' },
+    { t: '空山不见人', p: '王维', h: 'neutral' },
+    { t: '明月松间照', p: '王维', h: 'neutral', m: 1 },
+    { t: '清泉石上流', p: '王维', h: 'neutral' },
+    { t: '危楼高百尺', p: '李白', h: 'neutral' },
+    { t: '独坐幽篁里', p: '王维', h: 'neutral' },
+    { t: '众鸟高飞尽', p: '李白', h: 'neutral' },
+    { t: '远上寒山石径斜', p: '杜牧', h: 'neutral', a: 1 },
+    { t: '只在此山中，云深不知处', p: '贾岛', h: 'neutral' },
+    { t: '采菊东篱下，悠然见南山', p: '陶渊明', h: 'neutral' },
+    { t: '行到水穷处，坐看云起时', p: '王维', h: 'neutral' },
+    { t: '大漠沙如雪', p: '李贺', h: 'neutral' },
+  ];
+
+  /* 心相配诗：按墨色取同色相诗句；月夜材质优先带「月」记号。
+     出口统一归一为 { text, poet } 供拓印/文案使用 */
+  function pickPoem(hue, opts) {
+    let pool = POEM_LIBRARY.filter(p => p.h === hue);
+    if (opts && opts.moon) {
+      const moonPool = pool.filter(p => p.m);
+      if (moonPool.length) pool = moonPool;
+    }
+    if (!pool.length) pool = POEM_LIBRARY.filter(p => p.h === 'neutral');
+    if (!pool.length) pool = POEM_LIBRARY;
+    const p = pool[(Math.random() * pool.length) | 0];
+    return { text: p.t, poet: p.p, h: p.h, m: p.m, a: p.a };
+  }
+
   /* ---------- 分享文案（三套口吻随机；标题均自带「水影笺」，postNote 标题上限 20 字） ---------- */
   function templates(num, mind, poemText, poet) {
     return [
@@ -125,5 +203,5 @@ window.MIND = (function () {
     return pool[(Math.random() * pool.length) | 0];
   }
 
-  return { analyze, readMind, shareCopy };
+  return { analyze, readMind, shareCopy, pickPoem, POEM_LIBRARY };
 })();

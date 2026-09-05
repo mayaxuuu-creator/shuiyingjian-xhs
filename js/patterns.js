@@ -17,12 +17,13 @@ window.PATTERNS = (function () {
   }
 
   /* 配色方案：primary=用户选中色；accent=随机辅色（每次点击不同）；
-     点睛固定（金泥/朱砂）。每个角色保留各自的 gain（松烟五墨的浓淡由此生效） */
+     点睛按盘取（金泥/暖金/朱砂）。每个角色保留各自的 gain（松烟五墨的浓淡由此生效） */
   function scheme(palette, primaryEntry) {
     const primaryE = primaryEntry || palette.colors[palette.defaultIndex];
     const others = palette.colors.filter(c => c !== primaryE);
     const accentE = others.length ? others[(Math.random() * others.length) | 0] : primaryE;
     const sparkE = palette.colors.find(c => c.name === '金泥')
+      || palette.colors.find(c => c.name === '暖金')
       || palette.colors.find(c => c.name === '朱砂')
       || accentE;
     const role = e => ({ rgb: norm(e.rgb), gain: e.gain || 1 });
@@ -143,7 +144,29 @@ window.PATTERNS = (function () {
     return e;
   }
 
-  const registry = { yun, lang, xuan };
+  /* 桂雨：金点自上而下缓落（桂子月中落的意象），落定后一缕暖风拢向一侧 */
+  function guiyu(s) {
+    const e = [];
+    for (let i = 0; i < 26; i++) {
+      e.push({
+        delay: i * 65, x: rnd(0.15, 0.85), y: rnd(0.04, 0.22),
+        dx: rnd(-40, 40), dy: rnd(-160, -90),
+        color: ink(s, i % 5 === 4 ? s.accent : s.spark, i % 5 === 4 ? 0.34 : 0.42, rnd(0.85, 1.15)),
+        radius: rnd(0.30, 0.50),
+      });
+    }
+    for (let i = 0; i < 10; i++) {
+      e.push({
+        delay: 1500 + i * 70, x: 0.15 + 0.7 * (i / 9), y: rnd(0.50, 0.72),
+        dx: rnd(120, 200), dy: rnd(-30, 10),
+        color: ink(s, s.primary, 0.30, rnd(0.9, 1.1)),
+        radius: 1.1,
+      });
+    }
+    return e;
+  }
+
+  const registry = { yun, lang, xuan, guiyu };
   return {
     make(name, palette, primaryEntry) {
       const fn = registry[name] || yun;

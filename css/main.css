@@ -168,45 +168,62 @@ body {
   50% { transform: translateX(-50%) translateY(-5px); }
 }
 
-/* ---------- 主题签条：垂在池沿右上 ---------- */
+/* ---------- 五枚主题签（紧凑排布） ---------- */
 #themeSwitch {
   position: absolute;
   top: -6px;
   right: 14px;
   z-index: 4;
   display: flex;
-  gap: 7px;
+  gap: 5px;
 }
 .theme-tab {
   appearance: none;
   border: 1px solid rgba(201, 169, 97, 0.5);
   border-top: 0;
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 5px 5px;
   background: linear-gradient(180deg, rgba(28, 38, 34, 0.96), rgba(16, 22, 20, 0.96));
   color: var(--paper-dim);
   font-family: var(--serif);
-  font-size: 12.5px;
-  letter-spacing: 0.22em;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
   writing-mode: vertical-rl;
-  padding: 14px 7px 12px;
+  padding: 12px 5px 10px;
   cursor: pointer;
   position: relative;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
   transition: all 0.25s;
 }
-/* 签头红点（穿绳孔） */
 .theme-tab i {
   display: block;
-  width: 5px; height: 5px;
+  width: 4px; height: 4px;
   border-radius: 50%;
   background: rgba(165, 50, 42, 0.9);
-  margin: 0 auto 9px;
+  margin: 0 auto 8px;
 }
 .theme-tab.active {
   background: linear-gradient(180deg, #efe8d6, #ddd2b8);
   color: #1a211d;
   border-color: rgba(201, 169, 97, 0.85);
 }
+
+/* ---------- 陈列室入口（品牌列下端的「藏」印） ---------- */
+#galleryBtn {
+  appearance: none;
+  margin-top: auto;
+  margin-bottom: 6px;
+  width: 26px; height: 26px;
+  border: 1px solid rgba(201, 169, 97, 0.5);
+  border-radius: 5px;
+  background: rgba(28, 38, 34, 0.85);
+  color: rgba(201, 169, 97, 0.9);
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#galleryBtn:active { transform: scale(0.92); }
 
 /* ---------- 底部操作 ---------- */
 #dock {
@@ -467,4 +484,225 @@ body {
   .brand-sub-vert { display: none; }
   #brandStrip { width: 24px; }
   #watermark { font-size: 48px; right: 2vw; }
+}
+
+/* ---------- 成笺/素笺切换 ---------- */
+#modeSeg {
+  display: flex;
+  border: 1px solid rgba(233, 226, 208, 0.22);
+  border-radius: 999px;
+  overflow: hidden;
+}
+#modeSeg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--paper-dim);
+  font-family: var(--serif);
+  font-size: 12.5px;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+#modeSeg button.active {
+  background: var(--paper);
+  color: #1a211d;
+}
+
+/* ---------- 署名印行 ---------- */
+#sealRow {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--paper-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#sealLabel { color: rgba(201, 169, 97, 0.9); }
+.seal-edit {
+  appearance: none;
+  font-family: var(--serif);
+  font-size: 11px;
+  color: var(--paper-dim);
+  background: transparent;
+  border: 1px solid rgba(233, 226, 208, 0.25);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.seal-edit:active { transform: scale(0.95); }
+
+/* ---------- 刻印弹窗 ---------- */
+#sealModal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 11, 10, 0.7);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+#sealModal.hidden { display: none; }
+.seal-box {
+  width: min(80vw, 320px);
+  background: linear-gradient(170deg, #202b26, #141c19);
+  border: 1px solid rgba(201, 169, 97, 0.45);
+  border-radius: 14px;
+  padding: 20px 22px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.seal-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--paper);
+  text-align: center;
+}
+#sealInput {
+  font-family: var(--serif);
+  font-size: 20px;
+  letter-spacing: 0.3em;
+  text-align: center;
+  color: #f0e8d5;
+  background: rgba(233, 226, 208, 0.08);
+  border: 1px solid rgba(201, 169, 97, 0.4);
+  border-radius: 10px;
+  padding: 10px;
+  outline: none;
+  caret-color: var(--gold);
+}
+#sealInput:focus { border-color: rgba(201, 169, 97, 0.8); }
+.seal-modal-hint {
+  font-size: 11.5px;
+  color: rgba(233, 226, 208, 0.45);
+  text-align: center;
+}
+.seal-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* ---------- 陈列室展墙 ---------- */
+#galleryView {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 250, 235, 0.012) 0 2px, transparent 2px 5px),
+    radial-gradient(120% 90% at 50% 0%, #17201d 0%, #0d1210 60%, #090c0a 100%);
+  display: none;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#galleryView.show { display: flex; }
+.gv-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 4px 14px;
+}
+.gv-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  color: var(--paper);
+}
+.gv-count {
+  font-size: 12px;
+  color: rgba(201, 169, 97, 0.8);
+  letter-spacing: 0.2em;
+}
+.gv-close {
+  appearance: none;
+  margin-left: auto;
+  font-family: var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: var(--paper);
+  background: rgba(233, 226, 208, 0.08);
+  border: 1px solid rgba(233, 226, 208, 0.2);
+  border-radius: 999px;
+  padding: 6px 16px;
+  cursor: pointer;
+}
+.gv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  padding-bottom: 24px;
+}
+.gv-card {
+  border: 1px solid rgba(201, 169, 97, 0.4);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #000;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.gv-card:active { transform: scale(0.97); }
+.gv-card img { display: block; width: 100%; height: auto; }
+.gv-tag {
+  font-family: var(--serif);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(233, 226, 208, 0.75);
+  padding: 7px 9px;
+  background: rgba(233, 226, 208, 0.05);
+}
+.gv-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 14px;
+  line-height: 2.2;
+  letter-spacing: 0.2em;
+  color: rgba(233, 226, 208, 0.4);
+  padding: 60px 0;
+}
+.gv-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.gv-detail.hidden { display: none; }
+.gv-big {
+  width: min(82vw, 46vh * 0.692);
+  aspect-ratio: 720 / 1040;
+  height: auto;
+  border: 1px solid rgba(201, 169, 97, 0.4);
+  border-radius: 4px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+.gv-dtag {
+  font-size: 12.5px;
+  line-height: 1.9;
+  letter-spacing: 0.08em;
+  color: rgba(233, 226, 208, 0.75);
+  text-align: center;
+}
+.gv-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+/* ---------- 小屏适配 ---------- */
+@media (max-width: 480px) {
+  #stage { padding-left: 10px; padding-right: 10px; }
+  .swatch { width: 26px; height: 26px; }
+  #palette { gap: 11px; }
+  .tool-btn { padding: 9px 13px; font-size: 13px; }
+  .cta { padding: 10px 20px 10px 24px; font-size: 14px; }
+  .brand-sub-vert { display: none; }
+  #brandStrip { width: 24px; }
+  #watermark { font-size: 48px; right: 2vw; }
+  .theme-tab { padding: 10px 4px 8px; font-size: 11px; }
+  #themeSwitch { right: 10px; gap: 4px; }
+  .result-bar-wrap, #resultBar { flex-wrap: wrap; }
 }

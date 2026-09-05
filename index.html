@@ -17,10 +17,11 @@
   <!-- 顶部留空：让位给容器状态栏 / 返回 / 分享胶囊 -->
 
   <main id="poolRow">
-    <div id="brandStrip" aria-hidden="true">
+    <div id="brandStrip" aria-hidden="false">
       <span class="brand-dot"></span>
       <span class="brand-vert">水影笺</span>
       <span class="brand-sub-vert">以水为纸 · 滴墨成笺</span>
+      <button id="galleryBtn" title="陈列室">藏</button>
     </div>
 
     <div id="poolWrap">
@@ -28,10 +29,13 @@
       <div id="poolCorners" aria-hidden="true"></div>
       <div id="hint">点一点 · 滴墨　　划一划 · 吹墨　　按住 · 渗墨</div>
 
-      <!-- 主题切换：垂在池沿的两枚签条 -->
+      <!-- 主题切换：垂在池沿的五枚签条 -->
       <div id="themeSwitch">
         <button class="theme-tab active" data-theme="qinglv"><i></i>青绿</button>
         <button class="theme-tab" data-theme="shui"><i></i>松烟</button>
+        <button class="theme-tab" data-theme="dunhuang"><i></i>敦煌</button>
+        <button class="theme-tab" data-theme="ruyao"><i></i>汝窑</button>
+        <button class="theme-tab" data-theme="zhongqiu"><i></i>中秋</button>
       </div>
     </div>
   </main>
@@ -56,9 +60,17 @@
 <div id="printOverlay" class="hidden">
   <div id="sheetCaption"></div>
   <div id="paperSheet"><canvas id="paperCanvas"></canvas></div>
+  <div id="modeSeg">
+    <button data-mode="full" class="active">成笺</button>
+    <button data-mode="pure">素笺</button>
+  </div>
   <div id="resultBar" class="hidden">
     <button class="tool-btn ghost" id="againBtn">再拓一张</button>
+    <button class="tool-btn" id="collectBtn">收入陈列室</button>
     <button class="cta" id="saveBtn">保存图片</button>
+  </div>
+  <div id="sealRow">署名印 · <span id="sealLabel">水影笺印</span>
+    <button class="seal-edit" id="sealEdit">刻印</button>
   </div>
   <div id="shareCard" class="hidden">
     <div class="share-title" id="shareTitle"></div>
@@ -74,11 +86,24 @@
 
 <div id="toast"></div>
 
-<script src="./js/palette.js?v=1.7"></script>
-<script src="./js/fluid.js?v=1.7"></script>
-<script src="./js/patterns.js?v=1.7"></script>
-<script src="./js/rubbing.js?v=1.7"></script>
-<script src="./js/mind.js?v=1.7"></script>
-<script src="./js/main.js?v=1.7"></script>
+<div id="sealModal" class="hidden">
+  <div class="seal-box">
+    <div class="seal-modal-title">刻一枚署名印</div>
+    <input id="sealInput" maxlength="3" placeholder="最多 3 个字" autocomplete="off">
+    <div class="seal-modal-hint">留空则用默认「水影笺印」；印面会自动排版</div>
+    <div class="seal-modal-actions">
+      <button class="tool-btn small ghost" id="sealCancel">取消</button>
+      <button class="cta cta-mini" id="sealSave">刻好</button>
+    </div>
+  </div>
+</div>
+
+<script src="./js/palette.js?v=2.0"></script>
+<script src="./js/fluid.js?v=2.0"></script>
+<script src="./js/patterns.js?v=2.0"></script>
+<script src="./js/rubbing.js?v=2.0"></script>
+<script src="./js/mind.js?v=2.0"></script>
+<script src="./js/gallery.js?v=2.0"></script>
+<script src="./js/main.js?v=2.0"></script>
 </body>
 </html>
