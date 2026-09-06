@@ -272,6 +272,7 @@
   // ---------- 启动 ----------
   setTheme(PALETTES.qinglv);
   refreshSealLabel();
+  RUBBING.preloadTextures();   // 套装底纹生图预加载（未就绪自动回落程序纹理）
 
   // URL 演示钩子：?demo=shui-xuan-print / ?demo=qinglv-c2-lang-print / ?demo=shui-rank
   // 主题段直接匹配五盘 key（qinglv/shui/dunhuang/ruyao/zhongqiu）

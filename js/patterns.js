@@ -31,7 +31,7 @@ window.PATTERNS = (function () {
       primary: role(primaryE),
       accent: role(accentE),
       spark: role(sparkE),
-      damp: palette.key === 'shui' ? 1.0 : 1.0,   // 松烟防过曝已由各色 gain 校准
+      damp: palette.damp || 1.0,   // 套装注墨衰减：敦煌留白露底纹，其余满铺
     };
   }
   function ink(s, color, strength, jitter) {

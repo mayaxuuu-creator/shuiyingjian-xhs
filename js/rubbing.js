@@ -15,11 +15,11 @@ window.RUBBING = (function () {
   const TEXTURE_CACHE = {};   // src -> Image（已解码）
   function preloadTextures() {
     for (const key of Object.keys(SUITE_TEXTURES)) {
-      (SUITE_TEXTURES[key].img || []).forEach(src => {
-        if (TEXTURE_CACHE[src]) return;
+      (SUITE_TEXTURES[key].img || []).forEach(e => {
+        if (TEXTURE_CACHE[e.src]) return;
         const img = new Image();
-        img.onload = () => { TEXTURE_CACHE[src] = img; };
-        img.src = src;
+        img.onload = () => { TEXTURE_CACHE[e.src] = img; };
+        img.src = e.src;
       });
     }
   }
@@ -135,28 +135,40 @@ window.RUBBING = (function () {
      xuanzhi = 暖宣纸（墨为减光颜料，multiply 正片叠底）
      ciqing  = 磁青纸（颜料为月白粉/泥金粉，screen 滤色——银粉浮于蓝绢） */
   /* 套装底纹注册表（底纹属于套装气质，不属于物理材质——敦煌/汝窑共用宣纸底但各有底纹）
-     img: 生图入库后填 ['/textures/dh_1.webp',...]（预加载后随机一张，normal 叠加）
-     未入库/未加载完成 → 回落 fn 程序纹理，永不阻塞拓印 */
+     img: 生图库（dh_wall_01/02/03.webp，Maya 小云雀生成 + K老师选图定参）
+     每图可带 { src, alpha, filter }：alpha=叠加不透明度，filter=canvas 滤镜（如图3 sepia 暖调）
+     未加载完成 → 回落 fn 程序纹理，永不阻塞拓印 */
   const SUITE_TEXTURES = {
-    dunhuang: { fn: dunhuangTexture, alpha: 0.18, img: null },
-    ruyao:    { fn: ruyaoTexture,    alpha: 0.17, img: null },
+    dunhuang: {
+      fn: dunhuangTexture,
+      img: [
+        { src: './textures/dh_wall_01.webp', alpha: 0.20 },                    // 标准土黄版
+        { src: './textures/dh_wall_02.webp', alpha: 0.16 },                    // 华丽飘带版
+        { src: './textures/dh_wall_03.webp', alpha: 0.18, filter: 'sepia(0.3) saturate(0.8)' },  // 青绿壁画版→暖调
+      ],
+    },
+    ruyao: { fn: ruyaoTexture, alpha: 0.17, img: null },
   };
 
   function drawSuiteTexture(ctx, suiteKey, W, H, mul, after) {
     const t = SUITE_TEXTURES[suiteKey];
     if (!t) return;
+    // 生图层：墨前满强度铺底 + 墨后 55% 半透明"剥落浮层"（壁画剥落浮于墨面，浓墨区底纹也可见）
+    const entries = (t.img || []).filter(e => TEXTURE_CACHE[e.src]);
+    if (entries.length) {
+      const e = entries[(Math.random() * entries.length) | 0];
+      const img = TEXTURE_CACHE[e.src];
+      const scale = Math.max(W / img.width, H / img.height);
+      ctx.save();
+      ctx.globalAlpha = e.alpha * (after ? 0.55 : 1.0) * (mul === undefined ? 1 : mul);
+      if (e.filter) ctx.filter = e.filter;
+      ctx.drawImage(img, (W - img.width * scale) / 2, (H - img.height * scale) / 2, img.width * scale, img.height * scale);
+      ctx.restore();
+      return;
+    }
     const a = t.alpha * (mul === undefined ? 1 : mul);
     if (a <= 0.002) return;
-    const imgs = (t.img || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
-    if (imgs.length) {
-      const img = imgs[(Math.random() * imgs.length) | 0];
-      const scale = Math.max(W / img.width, H / img.height);
-      ctx.globalAlpha = a;
-      ctx.drawImage(img, (W - img.width * scale) / 2, (H - img.height * scale) / 2, img.width * scale, img.height * scale);
-      ctx.globalAlpha = 1;
-    } else if (t.fn) {
-      t.fn(ctx, W, H, a, after);
-    }
+    if (t.fn) t.fn(ctx, W, H, a, after);
   }
 
   const MATERIALS = {
