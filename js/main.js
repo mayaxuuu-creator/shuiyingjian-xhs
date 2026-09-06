@@ -14,6 +14,7 @@
     share: null,
     pure: false,          // 素笺模式（无题签/心相签/编号）
     lastPixels: null,     // 拓印像素缓存（成笺/素笺切换复用）
+    lastPattern: '',      // 本次池中最后使用的纹样（桂雨触发花形装饰）
     sealName: localStorage.getItem('syj_seal_name') || '',
   };
 
@@ -77,6 +78,7 @@
   // ---------- 纹样 / 清池 ----------
   document.querySelectorAll('[data-pattern]').forEach(btn => {
     btn.addEventListener('click', () => {
+      state.lastPattern = btn.dataset.pattern;
       FLUID.queue(PATTERNS.make(btn.dataset.pattern, state.palette, currentInk()));
       dismissHint();
     });
@@ -115,6 +117,7 @@
       pure: state.pure,
       sealName: state.sealName,
       material: state.palette.material,
+      pattern: state.palette.material === 'ciqing' ? state.lastPattern : '',
     });
     paperCanvas.width = RUBBING.W;
     paperCanvas.height = RUBBING.H;
@@ -296,6 +299,7 @@
         document.querySelector('[data-theme="' + themeKey + '"]').click();
         document.querySelectorAll('.swatch')[cIdx].click();
         FLUID.clear();
+        state.lastPattern = patName;
         FLUID.queue(PATTERNS.make(patName, PALETTES[themeKey], PALETTES[themeKey].colors[cIdx]));
         if (demo.includes('print')) setTimeout(() => document.getElementById('printBtn').click(), 2800);
       }, 450);

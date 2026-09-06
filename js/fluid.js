@@ -302,12 +302,26 @@ window.FLUID = (function () {
       vec3 col;
       float density;
       if (uPigment > 1.5) {
-        // 磁青导出：黑底 + 发光粉彩（screen 叠加的亮度掩码）
+        // 磁青导出：黑底 + 泥金粉彩（screen 叠加的亮度掩码）
+        // 双色调：暗主色（降饱和降明度，screen 底）+ 脊线高光（高浓度处提亮偏白，specular）
         float total = dye.r + dye.g + dye.b;
         vec3 chroma = dye / max(total, 1e-4);
-        float brightness = 0.30 + 0.70 * exp(-total * 0.9);
-        col = chroma * brightness * 1.35;
-        col = pow(max(col, 0.0), vec3(0.8));
+        float lum = dot(chroma, vec3(0.299, 0.587, 0.114));
+        vec3 base = mix(chroma, vec3(lum), 0.38) * 0.62;          // 暗主色：沉稳有重量
+        float ridge = smoothstep(0.5, 1.15, total);
+        vec3 spec = mix(chroma, vec3(1.0), 0.55) * 1.2;           // 亮高光：金粉反光
+        col = mix(base, spec, ridge * 0.85);
+        // 金粉颗粒：密度调制噪点（粉处粗细不均）
+        float g = hash(floor(vUv * vec2(920.0))) - 0.5;
+        col += vec3(0.9, 0.82, 0.6) * (g * 0.17) * smoothstep(0.06, 0.5, total);
+        // 淡金勾边：密度梯度大处（纹样边缘，normal 感的描金）
+        float dL = texture2D(uTexture, vL).r + texture2D(uTexture, vL).g + texture2D(uTexture, vL).b;
+        float dR = texture2D(uTexture, vR).r + texture2D(uTexture, vR).g + texture2D(uTexture, vR).b;
+        float dT = texture2D(uTexture, vT).r + texture2D(uTexture, vT).g + texture2D(uTexture, vT).b;
+        float dB = texture2D(uTexture, vB).r + texture2D(uTexture, vB).g + texture2D(uTexture, vB).b;
+        float edge = clamp((abs(total - dL) + abs(total - dR) + abs(total - dT) + abs(total - dB)) * 1.6, 0.0, 1.0);
+        edge *= smoothstep(0.05, 0.25, total) * (1.0 - ridge);   // 只勾在形体边缘，不在高光脊线
+        col += vec3(0.85, 0.72, 0.42) * edge * 0.42;
         density = total;
         float cover = smoothstep(0.03, 0.42, density);
         gl_FragColor = vec4(col * cover, 1.0);

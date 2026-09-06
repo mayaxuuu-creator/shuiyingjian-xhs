@@ -66,6 +66,7 @@ window.RUBBING = (function () {
       sealInner: 'rgba(12, 20, 42, 0.45)',
       fleckR: 0.55,   // 磁青洒金 = 细小星子（与大瓣桂雨区分）
       fleckA: 0.6,
+      goldDust: true, // 金粉浮光层（按墨纹密度撒金沙）
     },
   };
 
@@ -85,6 +86,7 @@ window.RUBBING = (function () {
     const mind = opts.mind;                   // { name, line }
     const pure = !!opts.pure;                 // 素笺模式：无题签/心相签/编号文字
     const sealName = opts.sealName || '';     // 署名（≤3 字）
+    const pattern = opts.pattern || '';       // 本次池中使用的纹样（桂雨触发花形装饰）
     const mat = MATERIALS[opts.material] || MATERIALS.xuanzhi;
 
     const canvas = document.createElement('canvas');
@@ -142,6 +144,17 @@ window.RUBBING = (function () {
       ctx.beginPath();
       ctx.arc(mx, my, mr, 0, Math.PI * 2);
       ctx.fill();
+      // 月相纹理：极淡月面阴影（让月亮不是塑料球）
+      ctx.fillStyle = 'rgba(90, 110, 165, 0.13)';
+      ctx.beginPath();
+      ctx.ellipse(mx - mr * 0.3, my - mr * 0.15, mr * 0.32, mr * 0.24, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(mx + mr * 0.28, my + mr * 0.32, mr * 0.24, mr * 0.17, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(mx + mr * 0.05, my - mr * 0.42, mr * 0.16, mr * 0.11, 0.9, 0, Math.PI * 2);
+      ctx.fill();
     }
     // 墨纹吸附：宣纸 multiply（减光）/ 磁青 screen（粉彩发光）
     ctx.globalCompositeOperation = mat.blend;
@@ -149,6 +162,58 @@ window.RUBBING = (function () {
     ctx.drawImage(temp, (W - dw) / 2, (H - dh) / 2, dw, dh);
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'source-over';
+
+    // 3.5 金粉浮光层（磁青）：按墨纹密度撒金沙——浓处密且亮，lighter 提闪
+    if (mat.goldDust) {
+      ctx.globalCompositeOperation = 'lighter';
+      const darkGold = 'rgba(184, 149, 74, ', brightGold = 'rgba(244, 230, 200, ';
+      for (let i = 0; i < 560; i++) {
+        const x = 30 + Math.random() * (W - 60), y = 30 + Math.random() * (H - 60);
+        // 查该点墨密度（flipped 图像坐标）
+        const px = Math.floor((x - (W - dw) / 2) / scale);
+        const py = Math.floor((y - (H - dh) / 2) / scale);
+        if (px < 0 || py < 0 || px >= pw || py >= ph) continue;
+        const pi = (py * pw + px) * 4;
+        const lum = (flipped[pi] + flipped[pi + 1] + flipped[pi + 2]) / 765;
+        if (lum < 0.18 || Math.random() > lum * 1.15) continue;
+        const r = 0.6 + Math.random() * 1.8;
+        ctx.fillStyle = (Math.random() < 0.32 ? brightGold : darkGold) + (0.25 + Math.random() * 0.5) + ')';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // 3.6 桂雨花形（磁青 + 桂雨纹样）：四瓣小花疏疏几点，落在云纹之上
+    if (mat.goldDust && opts.pattern === 'guiyu') {
+      ctx.globalCompositeOperation = 'screen';
+      const n = 9 + ((Math.random() * 6) | 0);
+      for (let i = 0; i < n; i++) {
+        const fx = 60 + Math.random() * (W - 120);
+        const fy = H * 0.14 + Math.random() * H * 0.5;
+        const fs = 3.2 + Math.random() * 2.2;          // 花瓣尺寸
+        const fade = 1 - Math.max(0, (fy - H * 0.45) / (H * 0.5)) * 0.55;   // 低处渐隐
+        ctx.save();
+        ctx.translate(fx, fy);
+        ctx.rotate(Math.random() * Math.PI);
+        ctx.globalAlpha = (0.75 + Math.random() * 0.25) * fade;
+        for (let p = 0; p < 4; p++) {
+          ctx.rotate(Math.PI / 2);
+          ctx.fillStyle = '#d4af37';
+          ctx.beginPath();
+          ctx.ellipse(fs * 0.62, 0, fs * 1.05, fs * 0.82, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#f4e6c8';                     // 花蕊
+        ctx.beginPath();
+        ctx.arc(0, 0, fs * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1.0;
+      ctx.globalCompositeOperation = 'source-over';
+    }
 
     // 4. 洒金（宣纸=金箔；磁青=细小星子，避免和桂雨纹样混淆）
     const fleckR = mat.fleckR || 1, fleckA = mat.fleckA || 1;
