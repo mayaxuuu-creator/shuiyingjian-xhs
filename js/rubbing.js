@@ -9,10 +9,14 @@ window.RUBBING = (function () {
   const W = 720, H = 1040;
   const SERIF = '"WenKai", "Songti SC", "STSong", "Noto Serif CJK SC", "Noto Serif SC", serif';
 
-  /* 材质包：拓印载体各自的纸底/纤维/文字/框线配色
-     xuanzhi = 暖宣纸（墨字金饰）；ciqing = 磁青纸（深夜蓝底描金） */
+  /* 材质包：拓印载体各自的纸底/纤维/文字/框线配色与混合语义
+     xuanzhi = 暖宣纸（墨为减光颜料，multiply 正片叠底）
+     ciqing  = 磁青纸（颜料为月白粉/泥金粉，screen 滤色——银粉浮于蓝绢） */
   const MATERIALS = {
     xuanzhi: {
+      blend: 'multiply',
+      blendAlpha: 0.94,
+      moonR: 0,
       paper: '#f6efdc',
       fiberDark: 'rgba(122, 98, 62, ',
       fiberDarkA: 0.05,
@@ -36,6 +40,9 @@ window.RUBBING = (function () {
       sealInner: 'rgba(246, 239, 220, 0.5)',
     },
     ciqing: {
+      blend: 'screen',
+      blendAlpha: 1.0,
+      moonR: 0.085,   // 月轮半径（相对画幅高度），画在墨纹之下（云破月来）
       paper: '#0e162e',
       fiberDark: 'rgba(140, 160, 215, ',
       fiberDarkA: 0.05,
@@ -54,9 +61,9 @@ window.RUBBING = (function () {
       borderOuter: 'rgba(217, 185, 106, 0.55)',
       borderInner: 'rgba(217, 185, 106, 0.28)',
       vignette: 'rgba(0, 4, 18, 0.2)',
-      sealFace: 'rgba(158, 42, 32, 0.95)',
-      sealText: 'rgba(246, 239, 220, 0.95)',
-      sealInner: 'rgba(246, 239, 220, 0.5)',
+      sealFace: 'rgba(201, 168, 88, 0.92)',    // 泥金钤印：金面
+      sealText: 'rgba(12, 20, 42, 0.95)',      // 蓝文（磁青纸色反白）
+      sealInner: 'rgba(12, 20, 42, 0.45)',
       fleckR: 0.55,   // 磁青洒金 = 细小星子（与大瓣桂雨区分）
       fleckA: 0.6,
     },
@@ -119,8 +126,26 @@ window.RUBBING = (function () {
 
     const scale = Math.max(W / pw, H / ph);
     const dw = pw * scale, dh = ph * scale;
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = mat === MATERIALS.ciqing ? 0.9 : 0.94;   // 磁青深底少压一层
+    // 月轮（磁青）：淡金磁盘面 + 光晕，画在墨纹之下——墨纹 screen 卷过月轮即"云破月来"
+    if (mat.moonR > 0) {
+      const mx = W * 0.70, my = H * 0.28, mr = H * mat.moonR;
+      const halo = ctx.createRadialGradient(mx, my, mr * 0.4, mx, my, mr * 2.6);
+      halo.addColorStop(0, 'rgba(255, 236, 180, 0.28)');
+      halo.addColorStop(1, 'rgba(255, 236, 180, 0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(mx - mr * 2.6, my - mr * 2.6, mr * 5.2, mr * 5.2);
+      const disk = ctx.createRadialGradient(mx - mr * 0.25, my - mr * 0.25, mr * 0.15, mx, my, mr);
+      disk.addColorStop(0, 'rgba(255, 244, 214, 0.85)');
+      disk.addColorStop(0.75, 'rgba(250, 232, 190, 0.55)');
+      disk.addColorStop(1, 'rgba(245, 224, 175, 0.12)');
+      ctx.fillStyle = disk;
+      ctx.beginPath();
+      ctx.arc(mx, my, mr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // 墨纹吸附：宣纸 multiply（减光）/ 磁青 screen（粉彩发光）
+    ctx.globalCompositeOperation = mat.blend;
+    ctx.globalAlpha = mat.blendAlpha;
     ctx.drawImage(temp, (W - dw) / 2, (H - dh) / 2, dw, dh);
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'source-over';
@@ -212,7 +237,7 @@ window.RUBBING = (function () {
     }
 
     // 7. 朱砂印（右下：署名印/默认水影笺印）
-    drawSeal(ctx, W - 132, H - 208, 86, sealName);
+    drawSeal(ctx, W - 132, H - 208, 86, sealName, mat);
 
     // 8. 编号与年款（素笺模式省略）
     if (!pure) {
@@ -241,8 +266,7 @@ window.RUBBING = (function () {
     return canvas;
   }
 
-  function drawSeal(ctx, sx, sy, s, name) {
-    const mat = MATERIALS.xuanzhi;   // 印面材质固定朱砂
+  function drawSeal(ctx, sx, sy, s, name, mat) {
     ctx.save();
     ctx.translate(sx + s / 2, sy + s / 2);
     ctx.rotate((Math.random() - 0.5) * 0.04);

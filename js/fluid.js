@@ -277,10 +277,11 @@ window.FLUID = (function () {
       gl_FragColor = vec4(velocity, 0.0, 1.0);
     }`);
 
-  /* 显示 shader：两种模式
+  /* 显示 shader：三种模式
      uPigment=0 → 墨池：颜料在深水中（加色发光感）
-     uPigment=1 → 拓印：色相保持模型（色相看比例、深浅看浓度），
-                  蓝+绿相叠出深青（不糊成黑），补色相遇变深灰（不出粉紫） */
+     uPigment=1 → 拓印（宣纸系）：色相保持模型，蓝+绿相叠出深青，补色相遇变深灰
+     uPigment=2 → 拓印导出（磁青系）：黑底发光粉彩（月白粉/泥金粉语义），
+                  成笺时以 screen 滤色叠上磁青纸——银粉在蓝绢上流动，而不是黑墨糊夜 */
   const displayShader = compileShader(gl.FRAGMENT_SHADER, `
     precision highp float; precision highp sampler2D;
     varying vec2 vUv;
@@ -293,7 +294,6 @@ window.FLUID = (function () {
     uniform float uFiber;
     uniform float uPigment;
     uniform float uInkGain;
-    uniform float uInkLift;
     uniform float uMoon;
     uniform float uAspect;
     float hash (vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -301,13 +301,22 @@ window.FLUID = (function () {
       vec3 dye = texture2D(uTexture, vUv).rgb;
       vec3 col;
       float density;
-      if (uPigment > 0.5) {
+      if (uPigment > 1.5) {
+        // 磁青导出：黑底 + 发光粉彩（screen 叠加的亮度掩码）
+        float total = dye.r + dye.g + dye.b;
+        vec3 chroma = dye / max(total, 1e-4);
+        float brightness = 0.30 + 0.70 * exp(-total * 0.9);
+        col = chroma * brightness * 1.35;
+        col = pow(max(col, 0.0), vec3(0.8));
+        density = total;
+        float cover = smoothstep(0.03, 0.42, density);
+        gl_FragColor = vec4(col * cover, 1.0);
+        return;
+      } else if (uPigment > 0.5) {
         float total = dye.r + dye.g + dye.b;
         vec3 chroma = dye / max(total, 1e-4);
         float brightness = 0.22 + 0.78 * exp(-total * 1.1);
-        col = chroma * brightness * uInkGain;   // 深色材质（磁青）用更高增益，墨纹才浮得出纸面
-        col = pow(max(col, 0.0), vec3(0.72));   // 月光提亮：上提中间调
-        col += vec3(uInkLift);                   // 月色环境光
+        col = chroma * brightness * uInkGain;
         density = total;
       } else {
         float lum = dot(dye, vec3(0.299, 0.587, 0.114));
@@ -419,12 +428,11 @@ window.FLUID = (function () {
   }
 
   // ---------- 主题 ----------
-  const theme = { key: 'qinglv', moon: 0, inkGain: 1.3, inkLift: 0.0, pool: [0.05, 0.085, 0.09], gain: 1.0, shimmer: 1.0, curl: config.CURL, fiber: 0.028 };
+  const theme = { key: 'qinglv', ciqing: false, moon: 0, inkGain: 1.3, pool: [0.05, 0.085, 0.09], gain: 1.0, shimmer: 1.0, curl: config.CURL, fiber: 0.028 };
   function setTheme(palette) {
     theme.key = palette.key;
+    theme.ciqing = palette.material === 'ciqing';
     theme.moon = palette.moon || 0;
-    theme.inkGain = palette.inkGain || 1.3;
-    theme.inkLift = palette.inkLift || 0.0;
     theme.pool = palette.pool;
     theme.shimmer = palette.shimmer;
     theme.curl = palette.key === 'shui' ? 6 : 9;
@@ -625,11 +633,10 @@ window.FLUID = (function () {
     gl.uniform1f(displayProgram.uniforms.uTime, time);
     gl.uniform1f(displayProgram.uniforms.uVignette, vignette !== undefined ? vignette : (paperOverride ? 0.0 : 0.25));
     gl.uniform1f(displayProgram.uniforms.uFiber, paperOverride ? 0.006 : theme.fiber);
-    gl.uniform1f(displayProgram.uniforms.uPigment, paperOverride ? 1.0 : 0.0);
-    gl.uniform1f(displayProgram.uniforms.uMoon, theme.moon || 0.0);
+    gl.uniform1f(displayProgram.uniforms.uPigment, paperOverride ? (theme.ciqing ? 2.0 : 1.0) : 0.0);
+    gl.uniform1f(displayProgram.uniforms.uMoon, (!paperOverride && theme.moon) ? theme.moon : 0.0);
     gl.uniform1f(displayProgram.uniforms.uAspect, aspectRatio);
     gl.uniform1f(displayProgram.uniforms.uInkGain, theme.inkGain || 1.3);
-    gl.uniform1f(displayProgram.uniforms.uInkLift, theme.inkLift || 0.0);
     blit(target);
   }
 
