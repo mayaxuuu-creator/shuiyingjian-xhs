@@ -15,11 +15,11 @@ window.RUBBING = (function () {
   const TEXTURE_CACHE = {};   // src -> Image（已解码）
   function preloadTextures() {
     for (const key of Object.keys(SUITE_TEXTURES)) {
-      (SUITE_TEXTURES[key].img || []).forEach(e => {
-        if (TEXTURE_CACHE[e.src]) return;
+      (SUITE_TEXTURES[key].img || []).forEach(src => {
+        if (TEXTURE_CACHE[src]) return;
         const img = new Image();
-        img.onload = () => { TEXTURE_CACHE[e.src] = img; };
-        img.src = e.src;
+        img.onload = () => { TEXTURE_CACHE[src] = img; };
+        img.src = src;
       });
     }
   }
@@ -135,45 +135,31 @@ window.RUBBING = (function () {
      xuanzhi = 暖宣纸（墨为减光颜料，multiply 正片叠底）
      ciqing  = 磁青纸（颜料为月白粉/泥金粉，screen 滤色——银粉浮于蓝绢） */
   /* 套装底纹注册表（底纹属于套装气质，不属于物理材质——敦煌/汝窑共用宣纸底但各有底纹）
-     敦煌 = 三层拆分模式（K老师 D21 方案）：同一张底纹图按亮度拆三层，各用对的混合模式
-       crack 裂纹层（暗部）multiply 沉纸底 / mottle 斑驳层（中调）soft-light 透墨 /
-       gold 金箔层（亮部）screen 浮光——参数集中在 L，便于校准 */
+     img: 生图入库后填 ['/textures/dh_1.webp',...]（预加载后随机一张，normal 叠加）
+     未入库/未加载完成 → 回落 fn 程序纹理，永不阻塞拓印 */
   const SUITE_TEXTURES = {
-    dunhuang: {
-      img: [
-        { src: './textures/dh_wall_01.webp' },   // 标准土黄版
-        { src: './textures/dh_wall_02.webp' },   // 华丽飘带版
-        { src: './textures/dh_wall_03.webp' },   // 青绿壁画版（sepia 已移除：滤镜硬拉会糊进纸底）
-      ],
-      layerMode: true,
-      L: { dark: 90, bright: 165, crack: 0.15, mottle: 0.18, gold: 0.12 },
-    },
-    ruyao: { fn: ruyaoTexture, alpha: 0.17, img: null },
+    dunhuang: { fn: dunhuangTexture, alpha: 0.18, img: ['./textures/dh_wall_01.webp', './textures/dh_wall_02.webp', './textures/dh_wall_03.webp'] },
+    ruyao:    { fn: ruyaoTexture,    alpha: 0.17, img: null },
   };
 
-  /* 生图底纹三模式（K老师验收开关，?tex=float/single/soft）
-     float（默认）：墨下满强度铺底 + 墨上剥落浮层（blur 2px 柔边，每图独立强度）
-     single：仅墨下层——验收浮层必要性
-     soft：单层 soft-light 30%——保底方案（不切割墨纹、不叠加色相） */
-  /* 三层拆分引擎：底纹图按亮度阈值拆 裂纹(暗)/斑驳(中调)/金箔(亮) 三层
-     每层做"中性化"处理——multiply 白=无效、screen 黑=无效、soft-light 50%灰=无效，
-     叠加时各自只表达自己的视觉信息。结果按 src 缓存，只拆一次。 */
+  /* 敦煌三层拆分（K老师 D22 方案，?tex=l3 实验开关）：同一张底纹图按亮度阈值拆三层
+     crack 裂纹层（暗部）multiply 沉纸底 / mottle 斑驳层（中调）soft-light 透墨 /
+     gold 金箔层（亮部）screen 浮光。预处理：brightness(1.15) contrast(0.9) 去纯黑。 */
   const LAYER_CACHE = {};
-  function getLayers(src) {
+  const DH_L = { dark: 90, bright: 165, crack: 0.10, mottle: 0.16, gold: 0.20 };
+  function getDunhuangLayers(src) {
     if (LAYER_CACHE[src]) return LAYER_CACHE[src];
     const img = TEXTURE_CACHE[src];
     if (!img) return null;
     const w = img.width, h = img.height;
     const srcC = document.createElement('canvas');
     srcC.width = w; srcC.height = h;
-    srcC.getContext('2d').drawImage(img, 0, 0);
+    const sctx = srcC.getContext('2d');
+    sctx.filter = 'brightness(1.15) contrast(0.9)';
+    sctx.drawImage(img, 0, 0);
+    sctx.filter = 'none';
     const data = srcC.getContext('2d').getImageData(0, 0, w, h).data;
-    const t = SUITE_TEXTURES.dunhuang, L = t.L;
-    const mk = () => {
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      return c;
-    };
+    const mk = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
     const crack = mk(), mottle = mk(), gold = mk();
     const cc = crack.getContext('2d').createImageData(w, h);
     const md = mottle.getContext('2d').createImageData(w, h);
@@ -181,16 +167,13 @@ window.RUBBING = (function () {
     for (let i = 0; i < data.length; i += 4) {
       const r = data[i], g = data[i + 1], b = data[i + 2];
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      // 裂纹层：暗部保留、其余白（multiply 白=中性）
-      if (lum < L.dark) { cc.data[i] = r; cc.data[i + 1] = g; cc.data[i + 2] = b; }
+      if (lum < DH_L.dark) { cc.data[i] = r; cc.data[i + 1] = g; cc.data[i + 2] = b; }
       else { cc.data[i] = 255; cc.data[i + 1] = 255; cc.data[i + 2] = 255; }
       cc.data[i + 3] = 255;
-      // 斑驳层：中调保留、其余 50% 灰（soft-light 灰=中性）
-      if (lum >= L.dark && lum <= L.bright) { md.data[i] = r; md.data[i + 1] = g; md.data[i + 2] = b; }
+      if (lum >= DH_L.dark && lum <= DH_L.bright) { md.data[i] = r; md.data[i + 1] = g; md.data[i + 2] = b; }
       else { md.data[i] = 128; md.data[i + 1] = 128; md.data[i + 2] = 128; }
       md.data[i + 3] = 255;
-      // 金箔层：亮部保留、其余黑（screen 黑=中性）
-      if (lum > L.bright) { gd.data[i] = r; gd.data[i + 1] = g; gd.data[i + 2] = b; }
+      if (lum > DH_L.bright) { gd.data[i] = r; gd.data[i + 1] = g; gd.data[i + 2] = b; }
       else { gd.data[i] = 0; gd.data[i + 1] = 0; gd.data[i + 2] = 0; }
       gd.data[i + 3] = 255;
     }
@@ -202,43 +185,21 @@ window.RUBBING = (function () {
     return out;
   }
 
-  function drawSuiteTexture(ctx, suiteKey, W, H, mul, after, mode) {
+  function drawSuiteTexture(ctx, suiteKey, W, H, mul, after) {
     const t = SUITE_TEXTURES[suiteKey];
     if (!t) return;
-    const m = mode || 'float';
-    const entries = (t.img || []).filter(e => TEXTURE_CACHE[e.src]);
-    if (entries.length) {
-      if (after && m !== 'float') return;   // 浮层只在 float 模式存在
-      const e = entries[(Math.random() * entries.length) | 0];
-      const img = TEXTURE_CACHE[e.src];
-      const scale = Math.max(W / img.width, H / img.height);
-      const dx = (W - img.width * scale) / 2, dy = (H - img.height * scale) / 2;
-      ctx.save();
-      if (m === 'soft') {
-        // 保底：单层 soft-light
-        ctx.globalCompositeOperation = 'soft-light';
-        ctx.globalAlpha = 0.30 * (mul === undefined ? 1 : mul);
-        if (e.filter) ctx.filter = e.filter;
-        ctx.drawImage(img, dx, dy, img.width * scale, img.height * scale);
-      } else if (after) {
-        // float 浮层：剥落感（blur 柔边 + 独立强度）
-        ctx.globalAlpha = (e.float || 0.40) * (mul === undefined ? 1 : mul);
-        ctx.filter = 'blur(2px)' + (e.filter ? ' ' + e.filter : '');
-        ctx.drawImage(img, dx, dy, img.width * scale, img.height * scale);
-      } else {
-        // 墨下铺底
-        ctx.globalAlpha = e.alpha * (mul === undefined ? 1 : mul);
-        if (e.filter) ctx.filter = e.filter;
-        ctx.drawImage(img, dx, dy, img.width * scale, img.height * scale);
-      }
-      ctx.restore();
-      return;
-    }
-    // 程序纹理 fallback：single/soft 模式跳过浮层
-    if (after && m !== 'float') return;
     const a = t.alpha * (mul === undefined ? 1 : mul);
     if (a <= 0.002) return;
-    if (t.fn) t.fn(ctx, W, H, a, after);
+    const imgs = (t.img || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
+    if (imgs.length) {
+      const img = imgs[(Math.random() * imgs.length) | 0];
+      const scale = Math.max(W / img.width, H / img.height);
+      ctx.globalAlpha = a;
+      ctx.drawImage(img, (W - img.width * scale) / 2, (H - img.height * scale) / 2, img.width * scale, img.height * scale);
+      ctx.globalAlpha = 1;
+    } else if (t.fn) {
+      t.fn(ctx, W, H, a, after);
+    }
   }
 
   const MATERIALS = {
@@ -347,23 +308,24 @@ window.RUBBING = (function () {
       ctx.stroke();
     }
 
-    // 2.5 底纹：敦煌=三层拆分（裂纹层沉纸底）；汝窑=程序开片
-    let dhLayers = null;
-    if (opts.suite === 'dunhuang') {
-      const entries = (SUITE_TEXTURES.dunhuang.img || []).filter(e => TEXTURE_CACHE[e.src]);
+    // 2.5 套装底纹（敦煌飞天/汝窑开片）：纸底之后、墨纹之前——材质身份层
+    // 敦煌 l3 实验模式（?tex=l3）：三层拆分——裂纹层 multiply 沉纸底
+    let dhL3 = opts.texMode === 'l3' && opts.suite === 'dunhuang';
+    if (dhL3) {
+      const entries = (SUITE_TEXTURES.dunhuang.img || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
       if (entries.length) {
-        const e = entries[(Math.random() * entries.length) | 0];
-        dhLayers = getLayers(e.src);
-        if (dhLayers) {
-          const scale = Math.max(W / dhLayers.crack.width, H / dhLayers.crack.height);
+        const img = entries[(Math.random() * entries.length) | 0];
+        const ly = getDunhuangLayers(img.src);
+        if (ly) {
+          const scale = Math.max(W / ly.crack.width, H / ly.crack.height);
           ctx.globalCompositeOperation = 'multiply';
-          ctx.globalAlpha = SUITE_TEXTURES.dunhuang.L.crack;
-          ctx.drawImage(dhLayers.crack, (W - dhLayers.crack.width * scale) / 2, (H - dhLayers.crack.height * scale) / 2, dhLayers.crack.width * scale, dhLayers.crack.height * scale);
+          ctx.globalAlpha = DH_L.crack;
+          ctx.drawImage(ly.crack, (W - ly.crack.width * scale) / 2, (H - ly.crack.height * scale) / 2, ly.crack.width * scale, ly.crack.height * scale);
           ctx.globalCompositeOperation = 'source-over';
         }
       }
     } else {
-      drawSuiteTexture(ctx, opts.suite, W, H, undefined, false, opts.texMode);
+      drawSuiteTexture(ctx, opts.suite, W, H);
     }
 
     // 3. 墨纹：readPixels 自下而上，先翻行，再 multiply 吸附到纸面
@@ -487,22 +449,28 @@ window.RUBBING = (function () {
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    // 3.55 敦煌墨后层：斑驳 soft-light（透墨，深底自动弱化）+ 金箔 screen（只提亮不叠色相）
-    if (dhLayers) {
-      const L = SUITE_TEXTURES.dunhuang.L;
-      const scale = Math.max(W / dhLayers.mottle.width, H / dhLayers.mottle.height);
-      const dx = (W - dhLayers.mottle.width * scale) / 2, dy = (H - dhLayers.mottle.height * scale) / 2;
-      const dw = dhLayers.mottle.width * scale, dh2 = dhLayers.mottle.height * scale;
-      ctx.globalCompositeOperation = 'soft-light';
-      ctx.globalAlpha = L.mottle;
-      ctx.drawImage(dhLayers.mottle, dx, dy, dw, dh2);
-      ctx.globalCompositeOperation = 'screen';
-      ctx.globalAlpha = L.gold;
-      ctx.drawImage(dhLayers.gold, dx, dy, dw, dh2);
-      ctx.globalAlpha = 1.0;
-      ctx.globalCompositeOperation = 'source-over';
+    // 3.55 底纹透墨层：敦煌 l3 = 斑驳 soft-light + 金箔 screen；汝窑/默认 = 半强度透墨
+    if (dhL3) {
+      const entries = (SUITE_TEXTURES.dunhuang.img || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
+      if (entries.length) {
+        const img = entries[(Math.random() * entries.length) | 0];
+        const ly = getDunhuangLayers(img.src);
+        if (ly) {
+          const scale = Math.max(W / ly.mottle.width, H / ly.mottle.height);
+          const dx = (W - ly.mottle.width * scale) / 2, dy = (H - ly.mottle.height * scale) / 2;
+          const dw2 = ly.mottle.width * scale, dh2 = ly.mottle.height * scale;
+          ctx.globalCompositeOperation = 'soft-light';
+          ctx.globalAlpha = DH_L.mottle;
+          ctx.drawImage(ly.mottle, dx, dy, dw2, dh2);
+          ctx.globalCompositeOperation = 'screen';
+          ctx.globalAlpha = DH_L.gold;
+          ctx.drawImage(ly.gold, dx, dy, dw2, dh2);
+          ctx.globalAlpha = 1.0;
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      }
     } else {
-      drawSuiteTexture(ctx, opts.suite, W, H, 0.5, true, opts.texMode);
+      drawSuiteTexture(ctx, opts.suite, W, H, 0.5, true);
     }
 
     // 4. 洒金（宣纸=满铺金箔；磁青=星子聚类——簇状散布，去均匀噪点感）
