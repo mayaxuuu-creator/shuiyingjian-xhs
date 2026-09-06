@@ -117,6 +117,7 @@
       pure: state.pure,
       sealName: state.sealName,
       material: state.palette.material,
+      suite: state.palette.key,
       pattern: state.palette.material === 'ciqing' ? state.lastPattern : '',
     });
     paperCanvas.width = RUBBING.W;
@@ -273,9 +274,10 @@
   refreshSealLabel();
 
   // URL 演示钩子：?demo=shui-xuan-print / ?demo=qinglv-c2-lang-print / ?demo=shui-rank
+  // 主题段直接匹配五盘 key（qinglv/shui/dunhuang/ruyao/zhongqiu）
   const demo = new URLSearchParams(location.search).get('demo');
   if (demo) {
-    const themeKey = demo.includes('shui') ? 'shui' : demo.includes('zhongqiu') ? 'zhongqiu' : 'qinglv';
+    const themeKey = ['qinglv', 'shui', 'dunhuang', 'ruyao', 'zhongqiu'].find(k => demo.includes(k)) || 'qinglv';
     if (demo.includes('rank')) {
       setTimeout(() => {
         document.querySelector('[data-theme="' + themeKey + '"]').click();

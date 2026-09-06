@@ -9,14 +9,162 @@ window.RUBBING = (function () {
   const W = 720, H = 1040;
   const SERIF = '"WenKai", "Songti SC", "STSong", "Noto Serif CJK SC", "Noto Serif SC", serif';
 
+  /* 材质底纹：纸底之后、墨纹之前调用；生图优先，未就绪回落程序纹理
+     textureImg: ['/textures/xx.webp',...]（Maya 小云雀生图入库后填入）
+     textureAlpha: 底纹整体不透明度（对比调参用） */
+  const TEXTURE_CACHE = {};   // src -> Image（已解码）
+  function preloadTextures() {
+    for (const key of Object.keys(SUITE_TEXTURES)) {
+      (SUITE_TEXTURES[key].img || []).forEach(src => {
+        if (TEXTURE_CACHE[src]) return;
+        const img = new Image();
+        img.onload = () => { TEXTURE_CACHE[src] = img; };
+        img.src = src;
+      });
+    }
+  }
+
+  /* 汝窑开片：主纹纵贯 → 支纹 60° 分叉 → 细纹递归一层；釉面高光
+     after=true 时为"透墨层"：浅青线，让开片在墨色里也有裂纹反光 */
+  function ruyaoTexture(ctx, W, H, alpha, after) {
+    const A = alpha || 0.17;
+    const lineColor = after ? 'rgba(190, 216, 214, ' : 'rgba(56, 86, 90, ';
+    ctx.lineCap = 'round';
+    // 一条裂纹：随机折行
+    function crack(x, y, angle, len, seg, width, a) {
+      ctx.strokeStyle = lineColor + a + ')';
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      let ax = angle;
+      for (let i = 0; i < seg; i++) {
+        ax += (Math.random() - 0.5) * 0.55;
+        x += Math.cos(ax) * (len / seg);
+        y += Math.sin(ax) * (len / seg);
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      return { x, y, a: ax };
+    }
+    // 主纹：3~4 条纵贯
+    const mains = [];
+    const nMain = 3 + ((Math.random() * 2) | 0);
+    for (let i = 0; i < nMain; i++) {
+      const sx = W * (0.12 + 0.76 * ((i + Math.random() * 0.6) / nMain));
+      mains.push(crack(sx, -20, Math.PI / 2 + (Math.random() - 0.5) * 0.5, H + 60, 16 + ((Math.random() * 8) | 0), 1.1, A));
+    }
+    // 支纹：主纹中途 60°±25° 分叉
+    for (let i = 0; i < mains.length * 3; i++) {
+      const m = mains[i % mains.length];
+      const bx = m.x * (0.25 + Math.random() * 0.5) + (Math.random() - 0.5) * 40;
+      const dir = Math.random() > 0.5 ? 1 : -1;
+      const br = crack(bx, H * Math.random(), Math.PI / 2 + dir * (Math.PI / 3 + (Math.random() - 0.5) * 0.5), H * (0.12 + Math.random() * 0.2), 8, 0.7, A * 0.85);
+      // 细纹：支纹再分叉一层（冰裂的碎感）
+      for (let k = 0; k < 2; k++) {
+        crack(br.x * Math.random(), br.y * Math.random() + H * 0.2, Math.random() * Math.PI, H * (0.05 + Math.random() * 0.08), 5, 0.45, A * 0.7);
+      }
+    }
+    if (!after) {
+      // 釉面高光：1~2 处极淡 radial（只在底层画一次）
+      for (let i = 0; i < 2; i++) {
+        const hx = Math.random() * W, hy = Math.random() * H, hr = H * (0.18 + Math.random() * 0.15);
+        const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, hr);
+        g.addColorStop(0, 'rgba(240, 246, 244, 0.10)');
+        g.addColorStop(1, 'rgba(240, 246, 244, 0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(hx - hr, hy - hr, hr * 2, hr * 2);
+      }
+    }
+  }
+
+  /* 敦煌飘带（程序保底版）：双钩飘带 ×3 + 藻井角饰 + 金箔氧化点
+     after=true 时为"透墨层"：金线（矿物金透过墨色的反光） */
+  function dunhuangTexture(ctx, W, H, alpha, after) {
+    const A = alpha || 0.18;
+    const red = after ? 'rgba(212, 178, 110, ' : 'rgba(158, 64, 38, ';
+    const gold = 'rgba(180, 140, 70, ';
+    const lineAlphaMul = after ? 0.75 : 1;
+    // 双钩飘带：两条平行贝塞尔夹一条淡填充
+    for (let i = 0; i < 3; i++) {
+      const y0 = H * (0.18 + i * 0.3) + (Math.random() - 0.5) * 40;
+      const sway = (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 60);
+      const band = (lw, a) => {
+        ctx.beginPath();
+        ctx.moveTo(-30, y0);
+        ctx.bezierCurveTo(W * 0.3, y0 - sway, W * 0.7, y0 + sway, W + 30, y0 + (Math.random() - 0.5) * 30);
+        ctx.strokeStyle = red + (a * lineAlphaMul) + ')';
+        ctx.lineWidth = lw;
+        ctx.stroke();
+      };
+      ctx.lineCap = 'round';
+      band(2.2, A);            // 上钩线
+      band(1.4, A * 0.8);      // 下钩线
+      // 带中淡金晕染（衣带间的矿物沉积）
+      ctx.beginPath();
+      ctx.moveTo(-30, y0 + 3);
+      ctx.bezierCurveTo(W * 0.3, y0 - sway + 3, W * 0.7, y0 + sway + 3, W + 30, y0 + 3);
+      ctx.strokeStyle = gold + (A * 0.5) + ')';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+    }
+    // 金箔氧化点
+    for (let i = 0; i < 26; i++) {
+      const x = Math.random() * W, y = Math.random() * H;
+      ctx.fillStyle = gold + (A * 0.8) + ')';
+      ctx.beginPath();
+      ctx.arc(x, y, 0.7 + Math.random() * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // 藻井角饰：四角三层回纹角线
+    const corner = (cx, cy, sx, sy) => {
+      ctx.strokeStyle = red + (A * 0.9) + ')';
+      ctx.lineWidth = 1.2;
+      for (let l = 0; l < 3; l++) {
+        const o = l * 9;
+        ctx.beginPath();
+        ctx.moveTo(cx + sx * (26 + o), cy + sy * (8 + o));
+        ctx.lineTo(cx + sx * (8 + o), cy + sy * (8 + o));
+        ctx.lineTo(cx + sx * (8 + o), cy + sy * (26 + o));
+        ctx.stroke();
+      }
+    };
+    corner(0, 0, 1, 1); corner(W, 0, -1, 1); corner(0, H, 1, -1); corner(W, H, -1, -1);
+  }
+
   /* 材质包：拓印载体各自的纸底/纤维/文字/框线配色与混合语义
      xuanzhi = 暖宣纸（墨为减光颜料，multiply 正片叠底）
      ciqing  = 磁青纸（颜料为月白粉/泥金粉，screen 滤色——银粉浮于蓝绢） */
+  /* 套装底纹注册表（底纹属于套装气质，不属于物理材质——敦煌/汝窑共用宣纸底但各有底纹）
+     img: 生图入库后填 ['/textures/dh_1.webp',...]（预加载后随机一张，normal 叠加）
+     未入库/未加载完成 → 回落 fn 程序纹理，永不阻塞拓印 */
+  const SUITE_TEXTURES = {
+    dunhuang: { fn: dunhuangTexture, alpha: 0.18, img: null },
+    ruyao:    { fn: ruyaoTexture,    alpha: 0.17, img: null },
+  };
+
+  function drawSuiteTexture(ctx, suiteKey, W, H, mul, after) {
+    const t = SUITE_TEXTURES[suiteKey];
+    if (!t) return;
+    const a = t.alpha * (mul === undefined ? 1 : mul);
+    if (a <= 0.002) return;
+    const imgs = (t.img || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
+    if (imgs.length) {
+      const img = imgs[(Math.random() * imgs.length) | 0];
+      const scale = Math.max(W / img.width, H / img.height);
+      ctx.globalAlpha = a;
+      ctx.drawImage(img, (W - img.width * scale) / 2, (H - img.height * scale) / 2, img.width * scale, img.height * scale);
+      ctx.globalAlpha = 1;
+    } else if (t.fn) {
+      t.fn(ctx, W, H, a, after);
+    }
+  }
+
   const MATERIALS = {
     xuanzhi: {
       blend: 'multiply',
       blendAlpha: 0.94,
       moonR: 0,
+      // 素纸无底纹（文人美学，留白即材质语言）
       paper: '#f6efdc',
       fiberDark: 'rgba(122, 98, 62, ',
       fiberDarkA: 0.05,
@@ -43,6 +191,7 @@ window.RUBBING = (function () {
       blend: 'screen',
       blendAlpha: 1.0,
       moonR: 0.085,   // 月轮半径（相对画幅高度），画在墨纹之下（云破月来）
+      // 磁青底纹 = 月轮/桂雨/星子体系，不另加底图
       paper: '#0e162e',
       fiberDark: 'rgba(140, 160, 215, ',
       fiberDarkA: 0.05,
@@ -115,6 +264,9 @@ window.RUBBING = (function () {
       ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * 0.4);
       ctx.stroke();
     }
+
+    // 2.5 套装底纹（敦煌飞天/汝窑开片）：纸底之后、墨纹之前——材质身份层
+    drawSuiteTexture(ctx, opts.suite, W, H);
 
     // 3. 墨纹：readPixels 自下而上，先翻行，再 multiply 吸附到纸面
     const flipped = new Uint8ClampedArray(pixels.data.length);
@@ -236,6 +388,9 @@ window.RUBBING = (function () {
       ctx.globalAlpha = 1.0;
       ctx.globalCompositeOperation = 'source-over';
     }
+
+    // 3.55 套装底纹"透墨层"：开片/飘带以半强度再叠一次，材质身份透过墨色
+    drawSuiteTexture(ctx, opts.suite, W, H, 0.5, true);
 
     // 4. 洒金（宣纸=满铺金箔；磁青=星子聚类——簇状散布，去均匀噪点感）
     const fleckR = mat.fleckR || 1, fleckA = mat.fleckA || 1;
@@ -443,5 +598,5 @@ window.RUBBING = (function () {
     ctx.closePath();
   }
 
-  return { create, W, H };
+  return { create, preloadTextures, W, H };
 })();
