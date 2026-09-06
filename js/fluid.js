@@ -82,10 +82,8 @@ window.FLUID = (function () {
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
       console.error(gl.getShaderInfoLog(shader));
-      (window.__glslErrors = window.__glslErrors || []).push(String(gl.getShaderInfoLog(shader)).slice(0, 400));
-    }
     return shader;
   }
   function createProgram(vs, fs) {
@@ -94,10 +92,8 @@ window.FLUID = (function () {
     gl.attachShader(program, fs);
     gl.bindAttribLocation(program, 0, 'aPosition');
     gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS))
       console.error(gl.getProgramInfoLog(program));
-      (window.__glslErrors = window.__glslErrors || []).push('LINK: ' + String(gl.getProgramInfoLog(program)).slice(0, 400));
-    }
     return program;
   }
   function getUniforms(program) {
@@ -289,7 +285,6 @@ window.FLUID = (function () {
   const displayShader = compileShader(gl.FRAGMENT_SHADER, `
     precision highp float; precision highp sampler2D;
     varying vec2 vUv;
-    varying vec2 vL; varying vec2 vR; varying vec2 vT; varying vec2 vB;
     uniform sampler2D uTexture;
     uniform vec3 uPaper;
     uniform float uGain;
