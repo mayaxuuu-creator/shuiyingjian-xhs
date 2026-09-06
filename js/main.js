@@ -16,6 +16,8 @@
     lastPixels: null,     // 拓印像素缓存（成笺/素笺切换复用）
     lastPattern: '',      // 本次池中最后使用的纹样（桂雨触发花形装饰）
     sealName: localStorage.getItem('syj_seal_name') || '',
+    texMode: ['float', 'single', 'soft'].includes(new URLSearchParams(location.search).get('tex'))
+      ? new URLSearchParams(location.search).get('tex') : 'float',   // 底纹验收开关
   };
 
   const $ = s => document.querySelector(s);
@@ -118,6 +120,7 @@
       sealName: state.sealName,
       material: state.palette.material,
       suite: state.palette.key,
+      texMode: state.texMode,
       pattern: state.palette.material === 'ciqing' ? state.lastPattern : '',
     });
     paperCanvas.width = RUBBING.W;

@@ -142,30 +142,53 @@ window.RUBBING = (function () {
     dunhuang: {
       fn: dunhuangTexture,
       img: [
-        { src: './textures/dh_wall_01.webp', alpha: 0.20 },                    // 标准土黄版
-        { src: './textures/dh_wall_02.webp', alpha: 0.16 },                    // 华丽飘带版
-        { src: './textures/dh_wall_03.webp', alpha: 0.18, filter: 'sepia(0.3) saturate(0.8)' },  // 青绿壁画版→暖调
+        // float = 剥落浮层强度（每图独立，拉开随机感；K老师校准：40/35/38）
+        { src: './textures/dh_wall_01.webp', alpha: 0.20, float: 0.40 },                    // 标准土黄版
+        { src: './textures/dh_wall_02.webp', alpha: 0.16, float: 0.35 },                    // 华丽飘带版
+        { src: './textures/dh_wall_03.webp', alpha: 0.18, float: 0.38, filter: 'sepia(0.3) saturate(0.8)' },  // 青绿壁画版→暖调
       ],
     },
     ruyao: { fn: ruyaoTexture, alpha: 0.17, img: null },
   };
 
-  function drawSuiteTexture(ctx, suiteKey, W, H, mul, after) {
+  /* 生图底纹三模式（K老师验收开关，?tex=float/single/soft）
+     float（默认）：墨下满强度铺底 + 墨上剥落浮层（blur 2px 柔边，每图独立强度）
+     single：仅墨下层——验收浮层必要性
+     soft：单层 soft-light 30%——保底方案（不切割墨纹、不叠加色相） */
+  function drawSuiteTexture(ctx, suiteKey, W, H, mul, after, mode) {
     const t = SUITE_TEXTURES[suiteKey];
     if (!t) return;
-    // 生图层：墨前满强度铺底 + 墨后 55% 半透明"剥落浮层"（壁画剥落浮于墨面，浓墨区底纹也可见）
+    const m = mode || 'float';
     const entries = (t.img || []).filter(e => TEXTURE_CACHE[e.src]);
     if (entries.length) {
+      if (after && m !== 'float') return;   // 浮层只在 float 模式存在
       const e = entries[(Math.random() * entries.length) | 0];
       const img = TEXTURE_CACHE[e.src];
       const scale = Math.max(W / img.width, H / img.height);
+      const dx = (W - img.width * scale) / 2, dy = (H - img.height * scale) / 2;
       ctx.save();
-      ctx.globalAlpha = e.alpha * (after ? 0.55 : 1.0) * (mul === undefined ? 1 : mul);
-      if (e.filter) ctx.filter = e.filter;
-      ctx.drawImage(img, (W - img.width * scale) / 2, (H - img.height * scale) / 2, img.width * scale, img.height * scale);
+      if (m === 'soft') {
+        // 保底：单层 soft-light
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.globalAlpha = 0.30 * (mul === undefined ? 1 : mul);
+        if (e.filter) ctx.filter = e.filter;
+        ctx.drawImage(img, dx, dy, img.width * scale, img.height * scale);
+      } else if (after) {
+        // float 浮层：剥落感（blur 柔边 + 独立强度）
+        ctx.globalAlpha = (e.float || 0.40) * (mul === undefined ? 1 : mul);
+        ctx.filter = 'blur(2px)' + (e.filter ? ' ' + e.filter : '');
+        ctx.drawImage(img, dx, dy, img.width * scale, img.height * scale);
+      } else {
+        // 墨下铺底
+        ctx.globalAlpha = e.alpha * (mul === undefined ? 1 : mul);
+        if (e.filter) ctx.filter = e.filter;
+        ctx.drawImage(img, dx, dy, img.width * scale, img.height * scale);
+      }
       ctx.restore();
       return;
     }
+    // 程序纹理 fallback：single/soft 模式跳过浮层
+    if (after && m !== 'float') return;
     const a = t.alpha * (mul === undefined ? 1 : mul);
     if (a <= 0.002) return;
     if (t.fn) t.fn(ctx, W, H, a, after);
@@ -278,7 +301,7 @@ window.RUBBING = (function () {
     }
 
     // 2.5 套装底纹（敦煌飞天/汝窑开片）：纸底之后、墨纹之前——材质身份层
-    drawSuiteTexture(ctx, opts.suite, W, H);
+    drawSuiteTexture(ctx, opts.suite, W, H, undefined, false, opts.texMode);
 
     // 3. 墨纹：readPixels 自下而上，先翻行，再 multiply 吸附到纸面
     const flipped = new Uint8ClampedArray(pixels.data.length);
@@ -402,7 +425,7 @@ window.RUBBING = (function () {
     }
 
     // 3.55 套装底纹"透墨层"：开片/飘带以半强度再叠一次，材质身份透过墨色
-    drawSuiteTexture(ctx, opts.suite, W, H, 0.5, true);
+    drawSuiteTexture(ctx, opts.suite, W, H, 0.5, true, opts.texMode);
 
     // 4. 洒金（宣纸=满铺金箔；磁青=星子聚类——簇状散布，去均匀噪点感）
     const fleckR = mat.fleckR || 1, fleckA = mat.fleckA || 1;
