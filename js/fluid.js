@@ -306,11 +306,17 @@ window.FLUID = (function () {
         // 双色调：暗主色（降饱和降明度，screen 底）+ 脊线高光（高浓度处提亮偏白，specular）
         float total = dye.r + dye.g + dye.b;
         vec3 chroma = dye / max(total, 1e-4);
+        // 色相归拢：各通道向主导通道收缩——多色混拓不撕裂（红+蓝不成脏紫），饱和自然压缩
+        float mx = max(chroma.r, max(chroma.g, chroma.b));
+        chroma = mix(chroma, vec3(mx), 0.32);
         float lum = dot(chroma, vec3(0.299, 0.587, 0.114));
         vec3 base = mix(chroma, vec3(lum), 0.38) * 0.62;          // 暗主色：沉稳有重量
         float ridge = smoothstep(0.5, 1.15, total);
         vec3 spec = mix(chroma, vec3(1.0), 0.55) * 1.2;           // 亮高光：金粉反光
         col = mix(base, spec, ridge * 0.85);
+        // 暗部压色：最高密度区（浓粉堆积）沉下去——中心有重量，边缘才浮得起来
+        float sink = smoothstep(0.85, 1.5, total);
+        col = mix(col, vec3(0.09, 0.13, 0.22), sink * 0.4);
         // 金粉颗粒：密度调制噪点（粉处粗细不均）
         float g = hash(floor(vUv * vec2(920.0))) - 0.5;
         col += vec3(0.9, 0.82, 0.6) * (g * 0.17) * smoothstep(0.06, 0.5, total);
