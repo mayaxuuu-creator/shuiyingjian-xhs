@@ -53,7 +53,9 @@ window.PALETTES = {
     desc: '敦煌壁画 · 盛唐',
     material: 'xuanzhi',
     moon: 0,
-    damp: 0.72,   // 注墨衰减：留白露壁画底纹（斑驳/飘带），满铺会把生图底纹全盖掉
+    damp: 0.72,   // 注墨衰减：墨纹疏朗，让壁画纸底呼吸
+    // 花纸结构：生图直接做纸底（100% 呈现），白底墨纹 multiply 吸附——底图明显且油墨显色不打折
+    paperImg: ['./textures/dh_wall_01.webp', './textures/dh_wall_02.webp', './textures/dh_wall_03.webp'],
     // 墨池（深褐暖底）与拓印（土黄土底）
     pool: [0.075, 0.050, 0.032],
     paper: [0.930, 0.870, 0.740],

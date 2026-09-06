@@ -120,6 +120,7 @@
       sealName: state.sealName,
       material: state.palette.material,
       suite: state.palette.key,
+      paperImg: state.palette.paperImg || null,
       texMode: state.texMode,
       pattern: state.palette.material === 'ciqing' ? state.lastPattern : '',
     });
@@ -275,7 +276,8 @@
   // ---------- 启动 ----------
   setTheme(PALETTES.qinglv);
   refreshSealLabel();
-  RUBBING.preloadTextures();   // 套装底纹生图预加载（未就绪自动回落程序纹理）
+  // 花纸套装纸底图预加载（敦煌生图等；未就绪自动回落纯色纸底）
+  RUBBING.preloadTextures([].concat.apply([], Object.keys(PALETTES).map(k => PALETTES[k].paperImg || [])));
 
   // URL 演示钩子：?demo=shui-xuan-print / ?demo=qinglv-c2-lang-print / ?demo=shui-rank
   // 主题段直接匹配五盘 key（qinglv/shui/dunhuang/ruyao/zhongqiu）

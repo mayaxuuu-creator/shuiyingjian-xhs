@@ -82,8 +82,10 @@ window.FLUID = (function () {
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
       console.error(gl.getShaderInfoLog(shader));
+      (window.__glslErrors = window.__glslErrors || []).push(String(gl.getShaderInfoLog(shader)).slice(0, 400));
+    }
     return shader;
   }
   function createProgram(vs, fs) {
@@ -92,8 +94,10 @@ window.FLUID = (function () {
     gl.attachShader(program, fs);
     gl.bindAttribLocation(program, 0, 'aPosition');
     gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS))
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       console.error(gl.getProgramInfoLog(program));
+      (window.__glslErrors = window.__glslErrors || []).push('LINK: ' + String(gl.getProgramInfoLog(program)).slice(0, 400));
+    }
     return program;
   }
   function getUniforms(program) {
@@ -285,6 +289,7 @@ window.FLUID = (function () {
   const displayShader = compileShader(gl.FRAGMENT_SHADER, `
     precision highp float; precision highp sampler2D;
     varying vec2 vUv;
+    varying vec2 vL; varying vec2 vR; varying vec2 vT; varying vec2 vB;
     uniform sampler2D uTexture;
     uniform vec3 uPaper;
     uniform float uGain;
@@ -301,7 +306,17 @@ window.FLUID = (function () {
       vec3 dye = texture2D(uTexture, vUv).rgb;
       vec3 col;
       float density;
-      if (uPigment > 1.5) {
+      if (uPigment > 2.5) {
+        // 白底色相保持导出（敦煌花纸）：纸区纯白（multiply 无损），墨为实际色相吸附上纸
+        float total = dye.r + dye.g + dye.b;
+        vec3 chroma = dye / max(total, 1e-4);
+        float brightness = 0.30 + 0.70 * exp(-total * 0.85);
+        col = chroma * brightness * 1.22;
+        col = pow(max(col, 0.0), vec3(0.85));
+        float cover = smoothstep(0.04, 0.5, total);
+        gl_FragColor = vec4(mix(vec3(1.0), col, cover), 1.0);
+        return;
+      } else if (uPigment > 1.5) {
         // 磁青导出：黑底 + 泥金粉彩（screen 叠加的亮度掩码）
         // 双色调：暗主色（降饱和降明度，screen 底）+ 脊线高光（高浓度处提亮偏白，specular）
         float total = dye.r + dye.g + dye.b;
@@ -448,10 +463,11 @@ window.FLUID = (function () {
   }
 
   // ---------- 主题 ----------
-  const theme = { key: 'qinglv', ciqing: false, moon: 0, inkGain: 1.3, pool: [0.05, 0.085, 0.09], gain: 1.0, shimmer: 1.0, curl: config.CURL, fiber: 0.028 };
+  const theme = { key: 'qinglv', ciqing: false, paperImg: false, moon: 0, inkGain: 1.3, pool: [0.05, 0.085, 0.09], gain: 1.0, shimmer: 1.0, curl: config.CURL, fiber: 0.028 };
   function setTheme(palette) {
     theme.key = palette.key;
     theme.ciqing = palette.material === 'ciqing';
+    theme.paperImg = !!palette.paperImg;
     theme.moon = palette.moon || 0;
     theme.pool = palette.pool;
     theme.shimmer = palette.shimmer;
@@ -653,7 +669,7 @@ window.FLUID = (function () {
     gl.uniform1f(displayProgram.uniforms.uTime, time);
     gl.uniform1f(displayProgram.uniforms.uVignette, vignette !== undefined ? vignette : (paperOverride ? 0.0 : 0.25));
     gl.uniform1f(displayProgram.uniforms.uFiber, paperOverride ? 0.006 : theme.fiber);
-    gl.uniform1f(displayProgram.uniforms.uPigment, paperOverride ? (theme.ciqing ? 2.0 : 1.0) : 0.0);
+    gl.uniform1f(displayProgram.uniforms.uPigment, paperOverride ? (theme.ciqing ? 2.0 : (theme.paperImg ? 3.0 : 1.0)) : 0.0);
     gl.uniform1f(displayProgram.uniforms.uMoon, (!paperOverride && theme.moon) ? theme.moon : 0.0);
     gl.uniform1f(displayProgram.uniforms.uAspect, aspectRatio);
     gl.uniform1f(displayProgram.uniforms.uInkGain, theme.inkGain || 1.3);

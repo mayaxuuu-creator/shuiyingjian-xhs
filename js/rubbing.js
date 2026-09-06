@@ -8,27 +8,28 @@ window.RUBBING = (function () {
 
   const W = 720, H = 1040;
   const SERIF = '"WenKai", "Songti SC", "STSong", "Noto Serif CJK SC", "Noto Serif SC", serif';
+  // 印面专用：系统宋体（文楷子集不含用户名任意字，混排会字体回退不一致——统一系统字体）
+  const SEAL_FONT = '"Songti SC", "STSong", "Noto Serif CJK SC", "Noto Serif SC", serif';
 
   /* 材质底纹：纸底之后、墨纹之前调用；生图优先，未就绪回落程序纹理
      textureImg: ['/textures/xx.webp',...]（Maya 小云雀生图入库后填入）
      textureAlpha: 底纹整体不透明度（对比调参用） */
   const TEXTURE_CACHE = {};   // src -> Image（已解码）
-  function preloadTextures() {
-    for (const key of Object.keys(SUITE_TEXTURES)) {
-      (SUITE_TEXTURES[key].img || []).forEach(src => {
-        if (TEXTURE_CACHE[src]) return;
-        const img = new Image();
-        img.onload = () => { TEXTURE_CACHE[src] = img; };
-        img.src = src;
-      });
-    }
+  function preloadTextures(urls) {
+    (urls || []).forEach(src => {
+      if (TEXTURE_CACHE[src]) return;
+      const img = new Image();
+      img.onload = () => { TEXTURE_CACHE[src] = img; };
+      img.src = src;
+    });
   }
 
   /* 汝窑开片：主纹纵贯 → 支纹 60° 分叉 → 细纹递归一层；釉面高光
-     after=true 时为"透墨层"：浅青线，让开片在墨色里也有裂纹反光 */
+     after=true 时为"透墨层"：浅青线，让开片在墨色里也有裂纹反光
+     v3.0 加强（Maya 反馈太浅）：alpha 翻倍档 + 线加粗，开片要一眼可辨 */
   function ruyaoTexture(ctx, W, H, alpha, after) {
-    const A = alpha || 0.17;
-    const lineColor = after ? 'rgba(190, 216, 214, ' : 'rgba(56, 86, 90, ';
+    const A = alpha || 0.30;
+    const lineColor = after ? 'rgba(205, 228, 226, ' : 'rgba(48, 78, 82, ';
     ctx.lineCap = 'round';
     // 一条裂纹：随机折行
     function crack(x, y, angle, len, seg, width, a) {
@@ -46,22 +47,22 @@ window.RUBBING = (function () {
       ctx.stroke();
       return { x, y, a: ax };
     }
-    // 主纹：3~4 条纵贯
+    // 主纹：4~5 条纵贯
     const mains = [];
-    const nMain = 3 + ((Math.random() * 2) | 0);
+    const nMain = 4 + ((Math.random() * 2) | 0);
     for (let i = 0; i < nMain; i++) {
-      const sx = W * (0.12 + 0.76 * ((i + Math.random() * 0.6) / nMain));
-      mains.push(crack(sx, -20, Math.PI / 2 + (Math.random() - 0.5) * 0.5, H + 60, 16 + ((Math.random() * 8) | 0), 1.1, A));
+      const sx = W * (0.1 + 0.8 * ((i + Math.random() * 0.6) / nMain));
+      mains.push(crack(sx, -20, Math.PI / 2 + (Math.random() - 0.5) * 0.5, H + 60, 16 + ((Math.random() * 8) | 0), 1.6, A));
     }
     // 支纹：主纹中途 60°±25° 分叉
-    for (let i = 0; i < mains.length * 3; i++) {
+    for (let i = 0; i < mains.length * 4; i++) {
       const m = mains[i % mains.length];
       const bx = m.x * (0.25 + Math.random() * 0.5) + (Math.random() - 0.5) * 40;
       const dir = Math.random() > 0.5 ? 1 : -1;
-      const br = crack(bx, H * Math.random(), Math.PI / 2 + dir * (Math.PI / 3 + (Math.random() - 0.5) * 0.5), H * (0.12 + Math.random() * 0.2), 8, 0.7, A * 0.85);
+      const br = crack(bx, H * Math.random(), Math.PI / 2 + dir * (Math.PI / 3 + (Math.random() - 0.5) * 0.5), H * (0.14 + Math.random() * 0.22), 8, 1.0, A * 0.9);
       // 细纹：支纹再分叉一层（冰裂的碎感）
-      for (let k = 0; k < 2; k++) {
-        crack(br.x * Math.random(), br.y * Math.random() + H * 0.2, Math.random() * Math.PI, H * (0.05 + Math.random() * 0.08), 5, 0.45, A * 0.7);
+      for (let k = 0; k < 3; k++) {
+        crack(br.x * Math.random(), br.y * Math.random() + H * 0.2, Math.random() * Math.PI, H * (0.06 + Math.random() * 0.09), 5, 0.65, A * 0.8);
       }
     }
     if (!after) {
@@ -138,8 +139,7 @@ window.RUBBING = (function () {
      img: 生图入库后填 ['/textures/dh_1.webp',...]（预加载后随机一张，normal 叠加）
      未入库/未加载完成 → 回落 fn 程序纹理，永不阻塞拓印 */
   const SUITE_TEXTURES = {
-    dunhuang: { fn: dunhuangTexture, alpha: 0.18, img: ['./textures/dh_wall_01.webp', './textures/dh_wall_02.webp', './textures/dh_wall_03.webp'] },
-    ruyao:    { fn: ruyaoTexture,    alpha: 0.17, img: null },
+    ruyao: { fn: ruyaoTexture, alpha: 0.30, img: null },   // v3.0：开片加深（Maya 反馈太浅）
   };
 
   /* 敦煌三层拆分（K老师 D22 方案，?tex=l3 实验开关）：同一张底纹图按亮度阈值拆三层
@@ -285,9 +285,16 @@ window.RUBBING = (function () {
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // 1. 纸底
-    ctx.fillStyle = mat.paper;
-    ctx.fillRect(0, 0, W, H);
+    // 1. 纸底：花纸套装（敦煌）用生图整幅做纸底（100% 呈现）；其余纯色
+    const paperImgs = (opts.paperImg || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
+    if (paperImgs.length) {
+      const img = paperImgs[(Math.random() * paperImgs.length) | 0];
+      const scale = Math.max(W / img.width, H / img.height);
+      ctx.drawImage(img, (W - img.width * scale) / 2, (H - img.height * scale) / 2, img.width * scale, img.height * scale);
+    } else {
+      ctx.fillStyle = mat.paper;
+      ctx.fillRect(0, 0, W, H);
+    }
 
     // 2. 纸纤维：细噪点 + 长短纤维丝
     for (let i = 0; i < 2600; i++) {
@@ -308,23 +315,10 @@ window.RUBBING = (function () {
       ctx.stroke();
     }
 
-    // 2.5 套装底纹（敦煌飞天/汝窑开片）：纸底之后、墨纹之前——材质身份层
-    // 敦煌 l3 实验模式（?tex=l3）：三层拆分——裂纹层 multiply 沉纸底
-    let dhL3 = opts.texMode === 'l3' && opts.suite === 'dunhuang';
-    if (dhL3) {
-      const entries = (SUITE_TEXTURES.dunhuang.img || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
-      if (entries.length) {
-        const img = entries[(Math.random() * entries.length) | 0];
-        const ly = getDunhuangLayers(img.src);
-        if (ly) {
-          const scale = Math.max(W / ly.crack.width, H / ly.crack.height);
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.globalAlpha = DH_L.crack;
-          ctx.drawImage(ly.crack, (W - ly.crack.width * scale) / 2, (H - ly.crack.height * scale) / 2, ly.crack.width * scale, ly.crack.height * scale);
-          ctx.globalCompositeOperation = 'source-over';
-        }
-      }
-    } else {
+    // 2.5 套装底纹（汝窑开片）：纸底之后、墨纹之前——材质身份层
+    // 敦煌走花纸结构（生图已做纸底，无需叠加层）；l3 三层拆分实验已并入花纸路线，开关保留兼容
+    const dhL3 = opts.texMode === 'l3' && opts.suite === 'dunhuang';
+    if (!dhL3 && !paperImgs.length) {
       drawSuiteTexture(ctx, opts.suite, W, H);
     }
 
@@ -449,28 +443,9 @@ window.RUBBING = (function () {
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    // 3.55 底纹透墨层：敦煌 l3 = 斑驳 soft-light + 金箔 screen；汝窑/默认 = 半强度透墨
-    if (dhL3) {
-      const entries = (SUITE_TEXTURES.dunhuang.img || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
-      if (entries.length) {
-        const img = entries[(Math.random() * entries.length) | 0];
-        const ly = getDunhuangLayers(img.src);
-        if (ly) {
-          const scale = Math.max(W / ly.mottle.width, H / ly.mottle.height);
-          const dx = (W - ly.mottle.width * scale) / 2, dy = (H - ly.mottle.height * scale) / 2;
-          const dw2 = ly.mottle.width * scale, dh2 = ly.mottle.height * scale;
-          ctx.globalCompositeOperation = 'soft-light';
-          ctx.globalAlpha = DH_L.mottle;
-          ctx.drawImage(ly.mottle, dx, dy, dw2, dh2);
-          ctx.globalCompositeOperation = 'screen';
-          ctx.globalAlpha = DH_L.gold;
-          ctx.drawImage(ly.gold, dx, dy, dw2, dh2);
-          ctx.globalAlpha = 1.0;
-          ctx.globalCompositeOperation = 'source-over';
-        }
-      }
-    } else {
-      drawSuiteTexture(ctx, opts.suite, W, H, 0.5, true);
+    // 3.55 底纹透墨层：汝窑开片（非花纸套装）以加深强度透墨；敦煌花纸无需（生图已做纸底）
+    if (!paperImgs.length) {
+      drawSuiteTexture(ctx, opts.suite, W, H, 0.75, true);
     }
 
     // 4. 洒金（宣纸=满铺金箔；磁青=星子聚类——簇状散布，去均匀噪点感）
@@ -632,10 +607,10 @@ window.RUBBING = (function () {
     ctx.lineWidth = 1.5;
     roundRect(ctx, 5.5, 5.5, s - 11, s - 11, 4);
     ctx.stroke();
-    // 印文布局：按署名字数定（右起竖读）
+    // 印文布局：按署名字数定（右起竖读）——全部系统宋体，任意用户名不发生字体回退
     const { chars, font, col3 } = sealChars(name);
     ctx.fillStyle = mat.sealText;
-    ctx.font = 'bold ' + font + 'px ' + SERIF;
+    ctx.font = 'bold ' + font + 'px ' + SEAL_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (chars.length === 1) {
