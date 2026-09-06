@@ -24,15 +24,13 @@ window.RUBBING = (function () {
     });
   }
 
-  /* 汝窑开片：主纹纵贯 → 支纹 60° 分叉 → 细纹递归一层；釉面高光
-     after=true 时为"透墨层"：浅青线，让开片在墨色里也有裂纹反光 */
-  function ruyaoTexture(ctx, W, H, alpha, after) {
-    const A = alpha || 0.17;
-    const lineColor = after ? 'rgba(190, 216, 214, ' : 'rgba(56, 86, 90, ';
+  /* 汝窑开片（v3.2 花纸结构，K老师定稿）：开片纹直接绘制在纸底上（不是叠加层）
+     铁线（主纹）2.0px 深褐 #6A5A4A；金丝（支纹）0.8px 淡金 #C8B888 */
+  function ruyaoTexture(ctx, W, H) {
     ctx.lineCap = 'round';
     // 一条裂纹：随机折行
-    function crack(x, y, angle, len, seg, width, a) {
-      ctx.strokeStyle = lineColor + a + ')';
+    function crack(x, y, angle, len, seg, width, color) {
+      ctx.strokeStyle = color;
       ctx.lineWidth = width;
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -46,33 +44,23 @@ window.RUBBING = (function () {
       ctx.stroke();
       return { x, y, a: ax };
     }
-    // 主纹：3~4 条纵贯
+    const IRON = '#6A5A4A', GOLD = '#C8B888';
+    // 铁线（主纹）：4~5 条纵贯
     const mains = [];
-    const nMain = 3 + ((Math.random() * 2) | 0);
+    const nMain = 4 + ((Math.random() * 2) | 0);
     for (let i = 0; i < nMain; i++) {
-      const sx = W * (0.12 + 0.76 * ((i + Math.random() * 0.6) / nMain));
-      mains.push(crack(sx, -20, Math.PI / 2 + (Math.random() - 0.5) * 0.5, H + 60, 16 + ((Math.random() * 8) | 0), 1.1, A));
+      const sx = W * (0.1 + 0.8 * ((i + Math.random() * 0.6) / nMain));
+      mains.push(crack(sx, -20, Math.PI / 2 + (Math.random() - 0.5) * 0.5, H + 60, 16 + ((Math.random() * 8) | 0), 2.0, IRON));
     }
-    // 支纹：主纹中途 60°±25° 分叉
-    for (let i = 0; i < mains.length * 3; i++) {
+    // 金丝（支纹）：主纹中途 60°±25° 分叉
+    for (let i = 0; i < mains.length * 4; i++) {
       const m = mains[i % mains.length];
       const bx = m.x * (0.25 + Math.random() * 0.5) + (Math.random() - 0.5) * 40;
       const dir = Math.random() > 0.5 ? 1 : -1;
-      const br = crack(bx, H * Math.random(), Math.PI / 2 + dir * (Math.PI / 3 + (Math.random() - 0.5) * 0.5), H * (0.12 + Math.random() * 0.2), 8, 0.7, A * 0.85);
-      // 细纹：支纹再分叉一层（冰裂的碎感）
-      for (let k = 0; k < 2; k++) {
-        crack(br.x * Math.random(), br.y * Math.random() + H * 0.2, Math.random() * Math.PI, H * (0.05 + Math.random() * 0.08), 5, 0.45, A * 0.7);
-      }
-    }
-    if (!after) {
-      // 釉面高光：1~2 处极淡 radial（只在底层画一次）
-      for (let i = 0; i < 2; i++) {
-        const hx = Math.random() * W, hy = Math.random() * H, hr = H * (0.18 + Math.random() * 0.15);
-        const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, hr);
-        g.addColorStop(0, 'rgba(240, 246, 244, 0.10)');
-        g.addColorStop(1, 'rgba(240, 246, 244, 0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(hx - hr, hy - hr, hr * 2, hr * 2);
+      const br = crack(bx, H * Math.random(), Math.PI / 2 + dir * (Math.PI / 3 + (Math.random() - 0.5) * 0.5), H * (0.14 + Math.random() * 0.22), 8, 0.8, GOLD);
+      // 金丝细纹：再分叉一层
+      for (let k = 0; k < 3; k++) {
+        crack(br.x * Math.random(), br.y * Math.random() + H * 0.2, Math.random() * Math.PI, H * (0.06 + Math.random() * 0.09), 5, 0.8, GOLD);
       }
     }
   }
@@ -148,7 +136,7 @@ window.RUBBING = (function () {
       layerMode: true,
       L: { dark: 90, bright: 165, crack: 0.15, mottle: 0.18, gold: 0.12 },
     },
-    ruyao: { fn: ruyaoTexture, alpha: 0.17, img: null },
+    // ruyao 已改花纸结构（开片纹=纸底本身），不再走叠加层路径
   };
 
   /* 生图底纹三模式（K老师验收开关，?tex=float/single/soft）
@@ -355,6 +343,7 @@ window.RUBBING = (function () {
     }
 
     // 2.5 底纹：敦煌=三层拆分（裂纹层沉纸底）；汝窑=程序开片
+    // 2.5 底纹：敦煌=三层拆分（裂纹层沉纸底，花纸模式下跳过）；汝窑=花纸开片（直接绘制在纸底上，实色）
     let dhLayers = null;
     if (opts.suite === 'dunhuang' && !paperImgs.length) {   // 花纸模式下跳过（生图已做纸底）
       const entries = (SUITE_TEXTURES.dunhuang.img || []).filter(e => TEXTURE_CACHE[e.src]);
@@ -369,8 +358,8 @@ window.RUBBING = (function () {
           ctx.globalCompositeOperation = 'source-over';
         }
       }
-    } else {
-      drawSuiteTexture(ctx, opts.suite, W, H, undefined, false, opts.texMode);
+    } else if (opts.suite === 'ruyao') {
+      ruyaoTexture(ctx, W, H);   // 花纸结构：开片纹=纸底本身（铁线 2.0 深褐 + 金丝 0.8 淡金）
     }
 
     // 3. 墨纹：readPixels 自下而上，先翻行，再 multiply 吸附到纸面
@@ -508,7 +497,8 @@ window.RUBBING = (function () {
       ctx.drawImage(dhLayers.gold, dx, dy, dw, dh2);
       ctx.globalAlpha = 1.0;
       ctx.globalCompositeOperation = 'source-over';
-    } else if (!paperImgs.length) {
+    } else if (!paperImgs.length && opts.suite !== 'ruyao') {
+      // 汝窑花纸结构无透墨层（K老师定稿：单层纸底）；此分支仅保留给未花纸化的套装
       drawSuiteTexture(ctx, opts.suite, W, H, 0.5, true, opts.texMode);
     }
 

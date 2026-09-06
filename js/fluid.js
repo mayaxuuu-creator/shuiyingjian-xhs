@@ -458,11 +458,12 @@ window.FLUID = (function () {
   }
 
   // ---------- 主题 ----------
-  const theme = { key: 'qinglv', ciqing: false, paperImg: false, moon: 0, inkGain: 1.3, pool: [0.05, 0.085, 0.09], gain: 1.0, shimmer: 1.0, curl: config.CURL, fiber: 0.028 };
+  const theme = { key: 'qinglv', ciqing: false, paperImg: false, whiteExport: false, moon: 0, inkGain: 1.3, pool: [0.05, 0.085, 0.09], gain: 1.0, shimmer: 1.0, curl: config.CURL, fiber: 0.028 };
   function setTheme(palette) {
     theme.key = palette.key;
     theme.ciqing = palette.material === 'ciqing';
     theme.paperImg = !!palette.paperImg;
+    theme.whiteExport = !!palette.whiteExport;
     theme.moon = palette.moon || 0;
     theme.pool = palette.pool;
     theme.shimmer = palette.shimmer;
@@ -664,7 +665,7 @@ window.FLUID = (function () {
     gl.uniform1f(displayProgram.uniforms.uTime, time);
     gl.uniform1f(displayProgram.uniforms.uVignette, vignette !== undefined ? vignette : (paperOverride ? 0.0 : 0.25));
     gl.uniform1f(displayProgram.uniforms.uFiber, paperOverride ? 0.006 : theme.fiber);
-    gl.uniform1f(displayProgram.uniforms.uPigment, paperOverride ? (theme.ciqing ? 2.0 : (theme.paperImg ? 3.0 : 1.0)) : 0.0);
+    gl.uniform1f(displayProgram.uniforms.uPigment, paperOverride ? (theme.ciqing ? 2.0 : ((theme.paperImg || theme.whiteExport) ? 3.0 : 1.0)) : 0.0);
     gl.uniform1f(displayProgram.uniforms.uMoon, (!paperOverride && theme.moon) ? theme.moon : 0.0);
     gl.uniform1f(displayProgram.uniforms.uAspect, aspectRatio);
     gl.uniform1f(displayProgram.uniforms.uInkGain, theme.inkGain || 1.3);
