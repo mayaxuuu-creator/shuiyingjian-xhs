@@ -60,6 +60,7 @@ body {
   display: flex;
   flex-direction: column;
   /* 顶部大留白：状态栏 + 容器返回/分享胶囊区 */
+  padding: 88px 14px 12px;
   padding: calc(env(safe-area-inset-top, 0px) + 88px) 14px calc(12px + env(safe-area-inset-bottom, 0px));
   gap: 12px;
 }
@@ -117,6 +118,10 @@ body {
 }
 #pool {
   position: absolute;
+  top: 5px;
+  right: 5px;
+  bottom: 5px;
+  left: 5px;
   inset: 5px;
   width: calc(100% - 10px);
   height: calc(100% - 10px);
@@ -127,6 +132,10 @@ body {
 }
 #poolCorners {
   position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  left: 1px;
   inset: 1px;
   pointer-events: none;
   z-index: 3;
@@ -326,6 +335,10 @@ body {
 /* ---------- 覆纸拓印 ---------- */
 #printOverlay {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   z-index: 50;
   display: flex;
@@ -504,6 +517,11 @@ body {
   letter-spacing: 0.2em;
   text-indent: 0.2em;
   padding: 6px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 31px;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.25s;
 }
@@ -538,6 +556,10 @@ body {
 /* ---------- 刻印弹窗 ---------- */
 #sealModal {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   z-index: 90;
   display: flex;
@@ -593,6 +615,10 @@ body {
 /* ---------- 陈列室展墙 ---------- */
 #galleryView {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   z-index: 80;
   background:
@@ -600,9 +626,43 @@ body {
     radial-gradient(120% 90% at 50% 0%, #17201d 0%, #0d1210 60%, #090c0a 100%);
   display: none;
   flex-direction: column;
+  padding: 16px;
   padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(16px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Chrome 61 baseline: Flexbox gap and modern sizing get explicit fallbacks. */
+html.no-flex-gap #stage > * + * { margin-top: 12px; }
+html.no-flex-gap #poolRow > * + * { margin-left: 10px; }
+html.no-flex-gap #brandStrip > * + * { margin-top: 12px; }
+html.no-flex-gap #themeSwitch > * + * { margin-left: 5px; }
+html.no-flex-gap #dock > * + * { margin-top: 9px; }
+html.no-flex-gap .dock-label::before { margin-right: 12px; }
+html.no-flex-gap .dock-label::after { margin-left: 12px; }
+html.no-flex-gap #palette > * + * { margin-left: 13px; }
+html.no-flex-gap #tools > * + * { margin-left: 10px; }
+html.no-flex-gap .tool-group > * + * { margin-left: 8px; }
+html.no-flex-gap #printOverlay > * + * { margin-top: 14px; }
+html.no-flex-gap #resultBar > * + * { margin-left: 14px; }
+html.no-flex-gap #shareCard > * + * { margin-top: 8px; }
+html.no-flex-gap .share-actions > * + * { margin-left: 8px; }
+html.no-flex-gap #sealRow > * + * { margin-left: 8px; }
+html.no-flex-gap .seal-box > * + * { margin-top: 12px; }
+html.no-flex-gap .seal-modal-actions > * + * { margin-left: 10px; }
+html.no-flex-gap .gv-head > * + * { margin-left: 12px; }
+html.no-flex-gap .gv-close { margin-left: auto; }
+html.no-flex-gap .gv-detail > * + * { margin-top: 14px; }
+html.no-flex-gap .gv-actions > * + * { margin-left: 10px; }
+html.no-flex-gap #toast { bottom: 120px; }
+html.no-flex-gap .seal-box,
+html.no-flex-gap #shareCard { width: 82vw; max-width: 420px; }
+html.no-flex-gap .seal-box { max-width: 320px; }
+html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
+
+@media (max-width: 480px) {
+  html.no-flex-gap #palette > * + * { margin-left: 11px; }
+  html.no-flex-gap #themeSwitch > * + * { margin-left: 4px; }
 }
 #galleryView.show { display: flex; }
 .gv-head {

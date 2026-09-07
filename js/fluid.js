@@ -82,8 +82,12 @@ window.FLUID = (function () {
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
-      console.error(gl.getShaderInfoLog(shader));
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      const log = gl.getShaderInfoLog(shader);
+      console.error(log);
+      // 显性失败：编译不过就中止——绝不能静默裸奔（v3.1~v3.3 黑底事故根源）
+      throw new Error('水影笺 shader 编译失败：' + log);
+    }
     return shader;
   }
   function createProgram(vs, fs) {
@@ -92,8 +96,11 @@ window.FLUID = (function () {
     gl.attachShader(program, fs);
     gl.bindAttribLocation(program, 0, 'aPosition');
     gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS))
-      console.error(gl.getProgramInfoLog(program));
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      const log = gl.getProgramInfoLog(program);
+      console.error(log);
+      throw new Error('水影笺 shader 链接失败：' + log);
+    }
     return program;
   }
   function getUniforms(program) {
@@ -285,6 +292,7 @@ window.FLUID = (function () {
   const displayShader = compileShader(gl.FRAGMENT_SHADER, `
     precision highp float; precision highp sampler2D;
     varying vec2 vUv;
+    varying vec2 vL; varying vec2 vR; varying vec2 vT; varying vec2 vB;   // 磁青勾边采样邻域（v3.0 修过、v3.1 回退时丢失，v3.4 恢复）
     uniform sampler2D uTexture;
     uniform vec3 uPaper;
     uniform float uGain;
@@ -312,34 +320,24 @@ window.FLUID = (function () {
         gl_FragColor = vec4(mix(vec3(1.0), col, cover), 1.0);
         return;
       } else if (uPigment > 1.5) {
-        // 磁青导出：黑底 + 泥金粉彩（screen 叠加的亮度掩码）
-        // 双色调：暗主色（降饱和降明度，screen 底）+ 脊线高光（高浓度处提亮偏白，specular）
+        // 磁青导出（v3.5 保色相回归）：与墨池同路——染料原色相 + 轻压高光，screen 上纸后金是金的、蓝是蓝的
+        // （v3.4 及之前的"双色调粉彩"两次去饱和，把所有墨洗成偏白淡色——用户反馈 6092 号问题）
         float total = dye.r + dye.g + dye.b;
-        vec3 chroma = dye / max(total, 1e-4);
-        // 色相归拢：各通道向主导通道收缩——多色混拓不撕裂（红+蓝不成脏紫），饱和自然压缩
-        float mx = max(chroma.r, max(chroma.g, chroma.b));
-        chroma = mix(chroma, vec3(mx), 0.32);
-        float lum = dot(chroma, vec3(0.299, 0.587, 0.114));
-        vec3 base = mix(chroma, vec3(lum), 0.38) * 0.62;          // 暗主色：沉稳有重量
-        float ridge = smoothstep(0.5, 1.15, total);
-        vec3 spec = mix(chroma, vec3(1.0), 0.55) * 1.2;           // 亮高光：金粉反光
-        col = mix(base, spec, ridge * 0.85);
-        // 暗部压色：最高密度区（浓粉堆积）沉下去——中心有重量，边缘才浮得起来
-        float sink = smoothstep(0.85, 1.5, total);
-        col = mix(col, vec3(0.09, 0.13, 0.22), sink * 0.4);
+        float lum = dot(dye, vec3(0.299, 0.587, 0.114));
+        col = dye * (1.0 / (1.0 + 0.22 * lum));                  // 轻压高光：重叠不发白，色相不丢
         // 金粉颗粒：密度调制噪点（粉处粗细不均）
         float g = hash(floor(vUv * vec2(920.0))) - 0.5;
-        col += vec3(0.9, 0.82, 0.6) * (g * 0.17) * smoothstep(0.06, 0.5, total);
+        col += vec3(0.9, 0.82, 0.6) * (g * 0.14) * smoothstep(0.06, 0.5, total);
         // 淡金勾边：密度梯度大处（纹样边缘，normal 感的描金）
         float dL = texture2D(uTexture, vL).r + texture2D(uTexture, vL).g + texture2D(uTexture, vL).b;
         float dR = texture2D(uTexture, vR).r + texture2D(uTexture, vR).g + texture2D(uTexture, vR).b;
         float dT = texture2D(uTexture, vT).r + texture2D(uTexture, vT).g + texture2D(uTexture, vT).b;
         float dB = texture2D(uTexture, vB).r + texture2D(uTexture, vB).g + texture2D(uTexture, vB).b;
         float edge = clamp((abs(total - dL) + abs(total - dR) + abs(total - dT) + abs(total - dB)) * 1.6, 0.0, 1.0);
-        edge *= smoothstep(0.05, 0.25, total) * (1.0 - ridge);   // 只勾在形体边缘，不在高光脊线
+        edge *= smoothstep(0.05, 0.25, total);                   // 只勾在形体边缘
         col += vec3(0.85, 0.72, 0.42) * edge * 0.42;
         density = total;
-        float cover = smoothstep(0.03, 0.42, density);
+        float cover = smoothstep(0.02, 0.30, density);           // 墨池覆盖曲线：薄墨也显影，层次饱满
         gl_FragColor = vec4(col * cover, 1.0);
         return;
       } else if (uPigment > 0.5) {
@@ -501,7 +499,7 @@ window.FLUID = (function () {
   const scriptQueue = [];
   function queue(events) {
     const t0 = performance.now();
-    for (const e of events) scriptQueue.push({ ...e, t: t0 + (e.delay || 0) });
+    for (const e of events) scriptQueue.push(Object.assign({}, e, { t: t0 + (e.delay || 0) }));
   }
 
   // ---------- 指针 ----------

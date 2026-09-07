@@ -5,6 +5,21 @@
 (function () {
   'use strict';
 
+  // Chrome 61 has no Flexbox gap; keep the original spacing as a legacy layout layer.
+  (function supportFlexGap() {
+    const probe = document.createElement('div');
+    const first = document.createElement('div');
+    const second = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;display:flex;flex-direction:column;row-gap:1px;';
+    first.style.height = second.style.height = '1px';
+    probe.appendChild(first);
+    probe.appendChild(second);
+    document.body.appendChild(probe);
+    const supported = probe.scrollHeight === 3;
+    probe.parentNode.removeChild(probe);
+    if (!supported) document.documentElement.classList.add('no-flex-gap');
+  })();
+
   const state = {
     palette: PALETTES.qinglv,
     colorIndex: PALETTES.qinglv.defaultIndex,
@@ -120,6 +135,7 @@
       sealName: state.sealName,
       material: state.palette.material,
       suite: state.palette.key,
+      paper: state.palette.paper || null,   // 套装声明的纸底色（汝窑天青 #A8C4C0 走这里）
       paperImg: state.palette.paperImg || null,
       texMode: state.texMode,
       pattern: state.palette.material === 'ciqing' ? state.lastPattern : '',
@@ -146,7 +162,7 @@
     FLUID.resume();
   });
 
-  // ---------- 保存（容器 JSBridge 相册直存 / 网页下载兜底） ----------
+  // ---------- 保存（容器 JSBridge 相册直存） ----------
   $('#saveBtn').addEventListener('click', () => {
     saveDataUrl(paperCanvas.toDataURL('image/png'), state.number, true);
   });
@@ -162,13 +178,7 @@
       }
       return;
     }
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = '水影笺_' + num + '.png';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    showToast('已保存 ✓');
+    showToast('当前环境暂不支持保存 · 请截图保存');
   }
 
   // ---------- 分享文案 ----------

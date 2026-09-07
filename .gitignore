@@ -1,4 +1,5 @@
 .DS_Store
 .vercel
 *.zip
+.codex/
 shuizhijian_shader_improvement.md

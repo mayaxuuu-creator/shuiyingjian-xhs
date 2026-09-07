@@ -287,8 +287,8 @@ window.RUBBING = (function () {
       sealFace: 'rgba(201, 168, 88, 0.92)',    // 泥金钤印：金面
       sealText: 'rgba(12, 20, 42, 0.95)',      // 蓝文（磁青纸色反白）
       sealInner: 'rgba(12, 20, 42, 0.45)',
-      fleckR: 0.55,   // 磁青洒金 = 细小星子（与大瓣桂雨区分）
-      fleckA: 0.6,
+      fleckR: 0.85,   // 磁青洒金 = 细小星子（v3.5 加大提亮：深青底上星子要看得见）
+      fleckA: 0.9,
       goldDust: true, // 金粉浮光层（按墨纹密度撒金沙）
     },
   };
@@ -316,14 +316,16 @@ window.RUBBING = (function () {
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // 1. 纸底：花纸套装（敦煌）用生图整幅做纸底（100% 呈现）；其余纯色
+    // 1. 纸底：花纸套装（敦煌）用生图整幅做纸底（100% 呈现）；其余用套装声明的纸色（palette.paper），
+    //    未声明时回落材质默认（宣纸 #f6efdc / 磁青 #0e162e）——汝窑天青 #A8C4C0 即由此接线
+    const cssRGB = a => 'rgb(' + Math.round(a[0] * 255) + ',' + Math.round(a[1] * 255) + ',' + Math.round(a[2] * 255) + ')';
     const paperImgs = (opts.paperImg || []).map(s => TEXTURE_CACHE[s]).filter(Boolean);
     if (paperImgs.length) {
       const img = paperImgs[(Math.random() * paperImgs.length) | 0];
       const scale = Math.max(W / img.width, H / img.height);
       ctx.drawImage(img, (W - img.width * scale) / 2, (H - img.height * scale) / 2, img.width * scale, img.height * scale);
     } else {
-      ctx.fillStyle = mat.paper;
+      ctx.fillStyle = opts.paper ? cssRGB(opts.paper) : mat.paper;
       ctx.fillRect(0, 0, W, H);
     }
 
@@ -460,11 +462,11 @@ window.RUBBING = (function () {
     // 四瓣小花 + 花蕊，大小亮度都高于星子，"疏可走马"
     if (mat.goldDust) {
       ctx.globalCompositeOperation = 'screen';
-      const n = pattern === 'guiyu' ? 9 + ((Math.random() * 5) | 0) : 4 + ((Math.random() * 3) | 0);
+      const n = pattern === 'guiyu' ? 12 + ((Math.random() * 6) | 0) : 7 + ((Math.random() * 5) | 0);   // v3.5 加密：桂花在深青底上要数得出来
       for (let i = 0; i < n; i++) {
         const fx = 60 + Math.random() * (W - 120);
         const fy = H * 0.12 + Math.random() * H * 0.55;
-        const fs = (pattern === 'guiyu' ? 4.2 : 3.6) + Math.random() * 2.4;   // 比星子大且亮
+        const fs = (pattern === 'guiyu' ? 5.0 : 4.4) + Math.random() * 2.6;   // 比星子大且亮（v3.5 加大）
         const fade = 1 - Math.max(0, (fy - H * 0.45) / (H * 0.55)) * 0.5;     // 低处渐隐
         ctx.save();
         ctx.translate(fx, fy);
@@ -509,9 +511,9 @@ window.RUBBING = (function () {
     // 4. 洒金（宣纸=满铺金箔；磁青=星子聚类——簇状散布，去均匀噪点感）
     const fleckR = mat.fleckR || 1, fleckA = mat.fleckA || 1;
     if (mat.goldDust) {
-      // 聚类生成：6~9 个簇心，每簇 3~8 片金箔，簇外稀疏
+      // 聚类生成：9~12 个簇心（v3.5 加密），每簇 3~8 片金箔，簇外稀疏
       const centers = [];
-      const nc = 6 + ((Math.random() * 4) | 0);
+      const nc = 9 + ((Math.random() * 4) | 0);
       for (let c = 0; c < nc; c++) centers.push({ x: 40 + Math.random() * (W - 80), y: 40 + Math.random() * (H - 80) });
       for (const ct of centers) {
         const pieces = 3 + ((Math.random() * 6) | 0);
@@ -527,8 +529,8 @@ window.RUBBING = (function () {
           ctx.restore();
         }
       }
-      // 簇外散星（稀疏）
-      for (let i = 0; i < 26; i++) {
+      // 簇外散星（稀疏；v3.5 26→44 颗）
+      for (let i = 0; i < 44; i++) {
         const x = 30 + Math.random() * (W - 60), y = 30 + Math.random() * (H - 60);
         const r = 0.6 + Math.random() * 1.1;
         ctx.globalAlpha = 0.3 * fleckA;
@@ -538,9 +540,12 @@ window.RUBBING = (function () {
         ctx.fill();
       }
     } else {
-      for (let i = 0; i < 130; i++) {
+      // v3.5 洒金加密：青绿/松烟/敦煌满铺密度 ×1.9（用户反馈点缀太少）；汝窑保持原密度（未提出此问题）
+      const boost = (opts.suite === 'qinglv' || opts.suite === 'shui' || opts.suite === 'dunhuang') ? 1.9 : 1;
+      const sizeK = boost > 1 ? 1.15 : 1;
+      for (let i = 0; i < Math.round(130 * boost); i++) {
         const x = 30 + Math.random() * (W - 60), y = 30 + Math.random() * (H - 60);
-        const r = (0.7 + Math.random() * 1.8) * fleckR;
+        const r = (0.7 + Math.random() * 1.8) * fleckR * sizeK;
         ctx.globalAlpha = (0.45 + Math.random() * 0.3) * fleckA;
         ctx.fillStyle = mat.golds[(Math.random() * mat.golds.length) | 0];
         ctx.save();
@@ -551,7 +556,7 @@ window.RUBBING = (function () {
         ctx.fill();
         ctx.restore();
       }
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < Math.round(14 * boost); i++) {
         const x = 40 + Math.random() * (W - 80), y = 40 + Math.random() * (H - 80);
         ctx.globalAlpha = 0.6 * fleckA;
         ctx.fillStyle = mat.golds[(Math.random() * 2) | 0];
