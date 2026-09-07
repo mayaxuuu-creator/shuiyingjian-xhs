@@ -25,23 +25,27 @@ window.RUBBING = (function () {
   }
 
   /* 汝窑开片（v3.2 花纸结构，K老师定稿）：开片纹直接绘制在纸底上（不是叠加层）
-     铁线（主纹）2.0px 深褐 #6A5A4A；金丝（支纹）0.8px 淡金 #C8B888 */
+     铁线（主纹）2.0px 深褐 #6A5A4A；金丝（支纹）0.8px 淡金 #C8B888
+     质感：分段手绘抖动（线宽/浓淡沿线变化），出"粗细不均的铁线"而非均匀描边 */
   function ruyaoTexture(ctx, W, H) {
     ctx.lineCap = 'round';
-    // 一条裂纹：随机折行
+    // 一条裂纹：逐段绘制，每段线宽与浓淡微抖（手绘铁线的粗细不均）
     function crack(x, y, angle, len, seg, width, color) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
       let ax = angle;
       for (let i = 0; i < seg; i++) {
         ax += (Math.random() - 0.5) * 0.55;
-        x += Math.cos(ax) * (len / seg);
-        y += Math.sin(ax) * (len / seg);
-        ctx.lineTo(x, y);
+        const nx = x + Math.cos(ax) * (len / seg);
+        const ny = y + Math.sin(ax) * (len / seg);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.82 + Math.random() * 0.18;
+        ctx.lineWidth = Math.max(0.4, width * (0.75 + Math.random() * 0.5));
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(nx, ny);
+        ctx.stroke();
+        x = nx; y = ny;
       }
-      ctx.stroke();
+      ctx.globalAlpha = 1;
       return { x, y, a: ax };
     }
     const IRON = '#6A5A4A', GOLD = '#C8B888';
@@ -50,17 +54,17 @@ window.RUBBING = (function () {
     const nMain = 4 + ((Math.random() * 2) | 0);
     for (let i = 0; i < nMain; i++) {
       const sx = W * (0.1 + 0.8 * ((i + Math.random() * 0.6) / nMain));
-      mains.push(crack(sx, -20, Math.PI / 2 + (Math.random() - 0.5) * 0.5, H + 60, 16 + ((Math.random() * 8) | 0), 2.0, IRON));
+      mains.push(crack(sx, -20, Math.PI / 2 + (Math.random() - 0.5) * 0.5, H + 60, 22 + ((Math.random() * 10) | 0), 2.0, IRON));
     }
     // 金丝（支纹）：主纹中途 60°±25° 分叉
     for (let i = 0; i < mains.length * 4; i++) {
       const m = mains[i % mains.length];
       const bx = m.x * (0.25 + Math.random() * 0.5) + (Math.random() - 0.5) * 40;
       const dir = Math.random() > 0.5 ? 1 : -1;
-      const br = crack(bx, H * Math.random(), Math.PI / 2 + dir * (Math.PI / 3 + (Math.random() - 0.5) * 0.5), H * (0.14 + Math.random() * 0.22), 8, 0.8, GOLD);
+      const br = crack(bx, H * Math.random(), Math.PI / 2 + dir * (Math.PI / 3 + (Math.random() - 0.5) * 0.5), H * (0.14 + Math.random() * 0.22), 10, 0.8, GOLD);
       // 金丝细纹：再分叉一层
       for (let k = 0; k < 3; k++) {
-        crack(br.x * Math.random(), br.y * Math.random() + H * 0.2, Math.random() * Math.PI, H * (0.06 + Math.random() * 0.09), 5, 0.8, GOLD);
+        crack(br.x * Math.random(), br.y * Math.random() + H * 0.2, Math.random() * Math.PI, H * (0.06 + Math.random() * 0.09), 6, 0.8, GOLD);
       }
     }
   }

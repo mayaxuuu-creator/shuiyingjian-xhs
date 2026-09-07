@@ -11,6 +11,7 @@ window.PALETTES = {
     desc: '千里江山 · 青绿',
     material: 'xuanzhi',
     moon: 0,
+    whiteExport: true,   // 白底色相保持导出：multiply 白区零压暗，宣纸 #f6efdc 纯正呈现
     // 墨池（深潭水色，偏蓝不偏绿）与拓印（暖宣纸）两套底
     pool: [0.043, 0.066, 0.083],
     paper: [0.965, 0.938, 0.878],
@@ -32,6 +33,7 @@ window.PALETTES = {
     desc: '松烟入水 · 文人',
     material: 'xuanzhi',
     moon: 0,
+    whiteExport: true,   // 白底导出：宣纸纯正呈现
     pool: [0.058, 0.060, 0.066],
     paper: [0.958, 0.938, 0.898],
     shimmer: 0.4,
