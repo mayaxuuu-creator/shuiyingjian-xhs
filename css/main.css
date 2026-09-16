@@ -762,9 +762,15 @@ body {
   left: 0;
   inset: 0;
   z-index: 80;
-  background:
-    repeating-linear-gradient(45deg, rgba(255, 250, 235, 0.012) 0 2px, transparent 2px 5px),
-    radial-gradient(120% 90% at 50% 0%, #17201d 0%, #0d1210 60%, #090c0a 100%);
+  background-color: #121815;
+  background-image:
+    linear-gradient(180deg, rgba(246, 236, 214, 0.03), rgba(246, 236, 214, 0) 42%),
+    repeating-linear-gradient(90deg, rgba(199, 166, 108, 0.024) 0 1px, transparent 1px 34px),
+    radial-gradient(72% 42% at 50% 8%, rgba(225, 207, 171, 0.09), rgba(225, 207, 171, 0) 72%),
+    linear-gradient(180deg, #1e2823 0%, #141b18 58%, rgba(201, 169, 97, 0.14) 58%, #241a12 58.15%, #17110d 100%);
+  background-size: 100% 100%, 34px 58%, 100% 58%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+  background-repeat: no-repeat;
   display: none;
   flex-direction: column;
   padding: 16px;
@@ -877,13 +883,23 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
   white-space: nowrap;
 }
 .gv-section {
-  margin: 0 0 36px;
-  padding: 18px 0 24px;
+  margin: 0 0 24px;
+  padding: 0;
 }
 .gv-section.carrier-featured {
-  background: linear-gradient(180deg, rgba(201, 169, 97, 0.11), rgba(201, 169, 97, 0.015));
-  border-top: 1px solid rgba(201, 169, 97, 0.34);
-  border-bottom: 1px solid rgba(201, 169, 97, 0.12);
+  margin-bottom: 30px;
+}
+.gv-cabinet {
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 244, 214, 0.05), rgba(0, 0, 0, 0) 38%),
+    linear-gradient(180deg, #31251a, #1d1610);
+  border: 1px solid rgba(201, 169, 97, 0.42);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 205, 0.08),
+    inset 0 0 28px rgba(0, 0, 0, 0.38),
+    0 18px 42px rgba(0, 0, 0, 0.36);
 }
 .gv-section-head {
   display: flex;
@@ -906,34 +922,64 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
 }
 .gv-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  align-items: end;
-  gap: 22px 16px;
+  align-items: start;
+  gap: 18px 12px;
   padding-bottom: 12px;
 }
-.carrier-featured .gv-grid {
-  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+.exhibit-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 10px;
+  padding-bottom: 0;
+}
+.rack-grid {
+  grid-template-columns: repeat(auto-fill, minmax(106px, 1fr));
 }
 .gv-card {
   position: relative;
-  padding-bottom: 16px;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  padding-bottom: 0;
   cursor: pointer;
   transition: transform 0.2s;
 }
 .gv-card:active { transform: scale(0.97); }
+.gv-slot {
+  display: flex;
+  min-height: 0;
+  padding: 7px 7px 9px;
+  background: rgba(22, 28, 25, 0.86);
+  border: 1px solid rgba(201, 169, 97, 0.20);
+  border-radius: 5px;
+}
+.gv-slot.empty {
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 3 / 4;
+  color: rgba(233, 226, 208, 0.22);
+  font-family: var(--serif);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+}
+.gv-slot.empty .gv-shelf {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 11%;
+  margin: 0;
+}
 .gv-frame {
+  aspect-ratio: 720 / 1040;
   overflow: hidden;
   border: 1px solid rgba(201, 169, 97, 0.38);
   border-radius: 3px;
   background: #000;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.52);
 }
-.carrier-fan .gv-frame { border-radius: 14px; }
-.carrier-bookmark .gv-frame {
-  width: 72%;
-  margin: 0 auto;
-  border-radius: 9px;
-}
+.carrier-fan .gv-frame { border-radius: 12px; }
+.carrier-bookmark .gv-frame { border-radius: 8px; }
+.carrier-fan .gv-frame img { object-position: center 30%; }
 .carrier-featured .gv-frame {
   border-color: rgba(232, 206, 142, 0.78);
   box-shadow:
@@ -942,18 +988,14 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
 }
 .gv-shelf {
   display: block;
-  height: 11px;
-  margin: 10px 5px 0;
+  height: 8px;
+  margin: 7px 3px 0;
   background:
     linear-gradient(180deg, rgba(246, 231, 202, 0.28), rgba(158, 119, 68, 0.86) 32%, rgba(62, 45, 27, 0.96));
   border-radius: 3px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.38);
 }
 .carrier-bookmark .gv-shelf { width: 86%; margin-left: auto; margin-right: auto; }
-.carrier-featured .gv-shelf {
-  background:
-    linear-gradient(180deg, rgba(255, 244, 214, 0.36), rgba(201, 169, 97, 0.88) 32%, rgba(58, 44, 26, 0.96));
-}
 .gv-badge {
   position: absolute;
   top: 8px;
@@ -965,14 +1007,42 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
   font-size: 10px;
   letter-spacing: 0.14em;
 }
-.gv-card img { display: block; width: 100%; height: auto; }
+.gv-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .gv-tag {
   font-family: var(--serif);
   font-size: 11px;
   letter-spacing: 0.08em;
   color: rgba(233, 226, 208, 0.75);
-  padding: 7px 9px;
+  padding: 5px 5px;
+  text-align: center;
   background: rgba(233, 226, 208, 0.05);
+}
+.gv-slotpicker {
+  width: min(92vw, 420px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.gv-slotpicker span {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(201, 169, 97, 0.68);
+}
+.gv-slotpicker > div {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(28px, 1fr));
+  gap: 4px;
+}
+.gv-slotpicker button {
+  min-width: 0;
+  padding: 6px 0;
+  text-align: center;
+}
+.gv-slotpicker button.active {
+  color: #171d1a;
+  background: #ece5d2;
+  border-color: rgba(201, 169, 97, 0.85);
 }
 .gv-empty {
   width: 100%;
@@ -981,7 +1051,7 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
   line-height: 2.2;
   letter-spacing: 0.2em;
   color: rgba(233, 226, 208, 0.4);
-  padding: 60px 0;
+  padding: 34px 0;
 }
 .gv-detail {
   display: flex;
@@ -1020,5 +1090,11 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
   .theme-tab { padding: 10px 4px 8px; font-size: 11px; }
   #themeSwitch { right: 10px; gap: 4px; }
   .gv-note { display: none; }
+  .gv-cabinet { padding: 12px; }
+  .exhibit-grid { gap: 8px 7px; }
+  .gv-slot { padding: 5px 5px 7px; }
+  .gv-tag { font-size: 9px; padding: 4px 3px; }
+  .gv-slotpicker > div { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  .gv-slotpicker button { font-size: 10px; padding: 5px 0; }
   .result-bar-wrap, #resultBar { flex-wrap: wrap; }
 }

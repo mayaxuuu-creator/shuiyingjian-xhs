@@ -1,7 +1,7 @@
 /* 水影笺 · 长物斋（本地展品库）
    首选 IndexedDB；浏览器受限（隐私模式/内置浏览器禁用）时自动降级 localStorage（上限 8 张）。
    展墙视图：深色展墙网格 + 展签，点开看大图可再保存/发笔记/删除。数据仅存于本机设备。
-   v3.6 策展：用户可把最多九件作品放入「斋展」，旧数据未上展仍可正常显示。 */
+   v3.8 策展：斋展固定为九宫展格；可挑选九件，也可点格替换。旧数据未上展仍可正常显示。 */
 
 window.GALLERY = (function () {
   'use strict';
@@ -94,13 +94,65 @@ window.GALLERY = (function () {
     return store;
   }
 
+  function exhibitSlot(work) {
+    return Number.isInteger(work && work.slot) && work.slot >= 0 && work.slot < EXHIBIT_CAP ? work.slot : null;
+  }
+
+  /* 兼容旧数据：已上展但无格位的长物，按时间补入空格；不在这里批量改库。 */
+  function arrangeExhibits(works) {
+    const slots = Array(EXHIBIT_CAP).fill(null);
+    const queued = works.filter(w => w.featured).sort((a, b) => {
+      const as = exhibitSlot(a), bs = exhibitSlot(b);
+      if (as !== null && bs !== null) return as - bs;
+      if (as !== null) return -1;
+      if (bs !== null) return 1;
+      return b.ts - a.ts;
+    });
+    queued.forEach(work => {
+      const named = exhibitSlot(work);
+      if (named !== null && !slots[named]) {
+        slots[named] = work;
+      } else {
+        const next = slots.findIndex(item => !item);
+        if (next >= 0) slots[next] = work;
+      }
+    });
+    return slots;
+  }
+
   async function setFeatured(id, featured) {
     const works = await all();
     const work = works.find(w => String(w.id) === String(id));
     if (!work) return false;
-    const exhibitCount = works.filter(w => w.featured).length;
-    if (featured && !work.featured && exhibitCount >= EXHIBIT_CAP) return false;
-    work.featured = !!featured;
+    if (!featured) {
+      work.featured = false;
+      work.slot = null;
+      await put(work);
+      return true;
+    }
+    if (work.featured) return true;
+    const emptySlot = arrangeExhibits(works).findIndex(item => !item);
+    if (emptySlot < 0) return false;
+    work.featured = true;
+    work.slot = emptySlot;
+    await put(work);
+    return true;
+  }
+
+  async function setSlot(id, slot) {
+    if (!Number.isInteger(slot) || slot < 0 || slot >= EXHIBIT_CAP) return false;
+    const works = await all();
+    const work = works.find(w => String(w.id) === String(id));
+    if (!work) return false;
+    const occupant = works.find(item => item.featured && exhibitSlot(item) === slot);
+    if (occupant && String(occupant.id) === String(id)) return true;
+    if (occupant) {
+      occupant.featured = false;
+      occupant.slot = null;
+      await put(occupant);
+    }
+    work.featured = true;
+    work.slot = slot;
     await put(work);
     return true;
   }
@@ -143,53 +195,66 @@ window.GALLERY = (function () {
 
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-  function cardHTML(w) {
+  function cardHTML(w, slot) {
     const carrier = w.carrier || 'sheet';
+    const badge = slot === undefined ? (w.featured ? '斋展' : '') : '第 ' + (slot + 1) + ' 格';
     return '<div class="gv-card carrier-' + carrier + '" data-id="' + w.id + '">' +
       '<div class="gv-frame"><img src="' + w.dataUrl + '" alt=""></div>' +
-      (w.featured ? '<span class="gv-badge">斋展</span>' : '') +
+      (badge ? '<span class="gv-badge">' + badge + '</span>' : '') +
       '<div class="gv-tag">第 ' + w.number + ' 号 · ' + esc(w.mind) + '</div>' +
       '<i class="gv-shelf"></i></div>';
+  }
+
+  function exhibitHTML(slots) {
+    const count = slots.filter(Boolean).length;
+    return '<section class="gv-section carrier-featured">' +
+      '<div class="gv-cabinet">' +
+        '<header class="gv-section-head"><h2>斋 展</h2><span>' + count + ' / 9 · 挑选九件</span></header>' +
+        '<div class="gv-grid exhibit-grid">' +
+          slots.map((work, slot) => work
+            ? '<div class="gv-slot">' + cardHTML(work, slot) + '</div>'
+            : '<div class="gv-slot empty"><span>空 格</span><i class="gv-shelf"></i></div>'
+          ).join('') +
+        '</div>' +
+      '</div>' +
+    '</section>';
   }
 
   function sectionHTML(key, title, note, works) {
     return '<section class="gv-section carrier-' + key + '">' +
       '<header class="gv-section-head"><h2>' + title + '</h2><span>' + works.length + ' 件 · ' + note + '</span></header>' +
-      '<div class="gv-grid">' + works.map(cardHTML).join('') + '</div>' +
+      '<div class="gv-grid rack-grid">' + works.map(cardHTML).join('') + '</div>' +
       '</section>';
   }
 
   async function render() {
     const works = await all();
-    const shown = currentFilter === 'featured' ? works.filter(w => w.featured) : works;
+    const slots = arrangeExhibits(works);
+    const stored = works.filter(w => !w.featured);
     view.querySelectorAll('.gv-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === currentFilter));
-    view.querySelector('.gv-count').textContent = shown.length ? shown.length + ' 件' : '';
+    view.querySelector('.gv-count').textContent = works.length ? works.length + ' 件' : '';
     const grid = view.querySelector('.gv-grid');
     const detail = view.querySelector('.gv-detail');
     detail.classList.add('hidden');
 
-    let html = '';
-    if (currentFilter === 'featured') {
-      html = shown.length ? sectionHTML('featured', '斋 展', '上展长物', shown)
-        : '<div class="gv-empty">斋展未立<br>点开一件长物，上展即可</div>';
-    } else {
+    let html = exhibitHTML(slots);
+    if (currentFilter === 'all') {
       const byCarrier = {
-        sheet: works.filter(w => (w.carrier || 'sheet') === 'sheet' && !w.featured),
-        fan: works.filter(w => (w.carrier || 'sheet') === 'fan' && !w.featured),
-        bookmark: works.filter(w => (w.carrier || 'sheet') === 'bookmark' && !w.featured),
+        sheet: stored.filter(w => (w.carrier || 'sheet') === 'sheet'),
+        fan: stored.filter(w => (w.carrier || 'sheet') === 'fan'),
+        bookmark: stored.filter(w => (w.carrier || 'sheet') === 'bookmark'),
       };
-      const featured = works.filter(w => w.featured);
-      if (featured.length) html += sectionHTML('featured', '斋 展', '上展长物', featured);
       SECTIONS.slice(1).forEach(section => {
         const items = byCarrier[section.key];
         if (items.length) html += sectionHTML(section.key, section.title, section.note, items);
       });
-      if (!works.length) html = '<div class="gv-empty">长物斋尚空<br>拓一张喜欢的，收入斋中吧</div>';
+      if (!works.length) html += '<div class="gv-empty">库房尚空<br>拓一张喜欢的，收入斋中吧</div>';
+      if (works.length && !stored.length) html += '<div class="gv-empty">九格之外暂无库藏</div>';
     }
     grid.innerHTML = html;
     grid.classList.remove('hidden');
     grid.querySelectorAll('.gv-card').forEach(card => {
-      const find = currentFilter === 'featured' ? shown : works;
+      const find = works;
       card.addEventListener('click', () => showDetail(find.find(w => String(w.id) === card.dataset.id)));
     });
   }
@@ -202,9 +267,15 @@ window.GALLERY = (function () {
     detail.innerHTML =
       '<img class="gv-big" src="' + w.dataUrl + '" alt="">' +
       '<div class="gv-dtag">' + esc(w.theme || '流沙笺') + ' · 第 ' + w.number + ' 号 · 心相「' + esc(w.mind) + '」' +
+      (w.featured ? '<br>斋展 · 第 ' + (exhibitSlot(w) === null ? '—' : exhibitSlot(w) + 1) + ' 格' : '') +
       (w.carrierLabel && w.carrierLabel !== '笺' ? '<br>成器 · ' + esc(w.carrierLabel) : '') +
       (w.material ? '<br>辅料 · ' + esc(w.material) : '') +
       '<br>' + esc(w.poem || '') + '</div>' +
+      '<div class="gv-slotpicker"><span>展格</span><div>' +
+        Array.from({ length: EXHIBIT_CAP }, (_, slot) =>
+          '<button class="tool-btn small' + (w.featured && exhibitSlot(w) === slot ? ' active' : '') +
+          '" data-slot="' + slot + '">' + (slot + 1) + '</button>').join('') +
+      '</div></div>' +
       '<div class="gv-actions">' +
       '<button class="tool-btn small" data-act="save">保存图片</button>' +
       '<button class="tool-btn small" data-act="post">发笔记</button>' +
@@ -218,10 +289,16 @@ window.GALLERY = (function () {
         if (act === 'post' && onPost) onPost(w);
         if (act === 'feature') {
           const ok = await setFeatured(w.id, !w.featured);
-          if (!ok) { btn.textContent = '斋展已满'; return; }
+          if (!ok) { btn.textContent = '选格替换'; return; }
           await render();
         }
         if (act === 'del') { await remove(w.id); await render(); }
+      });
+    });
+    detail.querySelectorAll('[data-slot]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await setSlot(w.id, Number(btn.dataset.slot));
+        await render();
       });
     });
   }
@@ -229,5 +306,5 @@ window.GALLERY = (function () {
   function show() { ensureView(); render(); view.classList.add('show'); }
   function hide() { if (view) view.classList.remove('show'); }
 
-  return { add, all, remove, setFeatured, show, hide, setHandlers: (o) => { onSave = o.save; onPost = o.post; } };
+  return { add, all, remove, setFeatured, setSlot, show, hide, setHandlers: (o) => { onSave = o.save; onPost = o.post; } };
 })();
