@@ -1,7 +1,7 @@
 # 水影笺 · 小红书小工具版 — Agent 规则
 
 ## 定位
-主仓 [shuiyingjian](https://github.com/mayaxuuu-creator/shuiyingjian) 的小红书容器适配版：离线 H5，打包 zip 上传 Builder Hub 上架。当前开发分支基线 v3.8（`codex/v3.6-longwuzhai` 增量），发布候选 `水影笺_小红书_v1.8.zip`；不要把“已打包”写成“已提审 / 已上线”，也不要提前改动已发布候选包内容。
+主仓 [shuiyingjian](https://github.com/mayaxuuu-creator/shuiyingjian) 的小红书容器适配版：离线 H5，打包 zip 上传 Builder Hub 上架。当前开发分支基线 v3.9（`codex/v3.6-longwuzhai` 增量），发布候选 `水影笺_小红书_v1.8.zip`；不要把“已打包”写成“已提审 / 已上线”，也不要提前改动已发布候选包内容。
 
 ## 怎么跑
 ```bash
@@ -27,6 +27,7 @@ python3 serve.py 8138
 - zip audit：`python3 .codex/minitool-zip-builder/scripts/audit_artifact.py 水影笺_小红书_v1.8.zip`
 - WebGL 必须看 compile/link 错误；修 shader 后要验证 fallback 和导出双路径
 - v3.7 成器入口集中在拓印结果页：团扇为器物化渲染；辅料是拓后器面处理；主池底栏仅保留辅色选择。
-- 长物斋按斋展 / 笺架 / 扇架 / 签架分区；斋展是固定 3×3 展格，支持点格替换，不要回退成自由流式网格。
+- 长物斋按斋展 / 笺架 / 扇架 / 伞架 / 瓷架 / 签架分区；折扇归入扇架。斋展是固定 3×3 展格，支持点格替换，不要回退成自由流式网格。
+- 长物斋一键分享必须先合成 3:4 展览图，再经 `postNote` JSBridge 传图；不要引入 `a[download]` 或剪贴板路径。
 - 演示/自检钩子：`?demo=shui-rank`（五墨分层）、`?demo=qinglv-lang-print`（全流程）
-- 下一步：v3.7 分支验收；发布候选 v1.8 提审后等平台结果，不提前改动发布包内容
+- 下一步：v3.9 分支验收；发布候选 v1.8 提审后等平台结果，不提前改动发布包内容

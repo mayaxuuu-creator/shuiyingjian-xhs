@@ -10,6 +10,7 @@ window.GALLERY = (function () {
   const EXHIBIT_CAP = 9;
   let dbPromise = null, idbBroken = false;
   let currentFilter = 'all';
+  let lastWorks = [];
 
   function open() {
     if (dbPromise) return dbPromise;
@@ -159,11 +160,13 @@ window.GALLERY = (function () {
 
   /* ---------- 展墙视图 ---------- */
   let view = null;
-  let onSave = null, onPost = null;   // 由 main.js 注入（桥接保存/发笔记）
+  let onSave = null, onPost = null, onShare = null;   // 由 main.js 注入桥接
   const SECTIONS = [
     { key: 'featured', title: '斋 展', note: '上展长物' },
     { key: 'sheet', title: '笺 架', note: '纸上长物' },
-    { key: 'fan', title: '扇 架', note: '团扇' },
+    { key: 'fan', title: '扇 架', note: '团扇 · 折扇' },
+    { key: 'umbrella', title: '伞 架', note: '油纸伞' },
+    { key: 'porcelain', title: '瓷 架', note: '梅瓶' },
     { key: 'bookmark', title: '签 架', note: '书签' },
   ];
 
@@ -179,12 +182,14 @@ window.GALLERY = (function () {
           '<button class="gv-tab active" data-filter="all">全 部</button>' +
           '<button class="gv-tab" data-filter="featured">斋 展</button>' +
         '</div>' +
-        '<span class="gv-note">斋展最多九件</span>' +
+        '<span class="gv-curation-right"><span class="gv-note">斋展最多九件</span>' +
+        '<button class="tool-btn small gv-share">一键分享</button></span>' +
       '</div>' +
       '<div class="gv-grid"></div>' +
       '<div class="gv-detail hidden"></div>';
     document.body.appendChild(view);
     view.querySelector('.gv-close').addEventListener('click', hide);
+    view.querySelector('.gv-share').addEventListener('click', shareExhibit);
     view.querySelector('.gv-tabs').addEventListener('click', event => {
       const btn = event.target.closest('.gv-tab');
       if (!btn) return;
@@ -194,6 +199,92 @@ window.GALLERY = (function () {
   }
 
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  function sectionKey(work) {
+    return (work.carrier || 'sheet') === 'fanfold' ? 'fan' : work.carrier || 'sheet';
+  }
+
+  function shareWorks(works) {
+    const slots = arrangeExhibits(works).filter(Boolean);
+    return slots.length ? slots : works.slice(0, EXHIBIT_CAP);
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('作品图解码失败'));
+      image.src = src;
+    });
+  }
+
+  async function composeExhibit(works) {
+    const items = shareWorks(works);
+    const images = await Promise.all(items.map(work => loadImage(work.dataUrl)));
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1440;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#141a17';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const grain = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    grain.addColorStop(0, 'rgba(255,244,214,.07)');
+    grain.addColorStop(.5, 'rgba(255,255,255,.01)');
+    grain.addColorStop(1, 'rgba(0,0,0,.24)');
+    ctx.fillStyle = grain;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < 900; i++) {
+      ctx.fillStyle = 'rgba(255,244,214,' + (Math.random() * .015) + ')';
+      ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 1, 1);
+    }
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f0e8d5';
+    ctx.font = '700 46px "WenKai", "Songti SC", serif';
+    ctx.fillText('长 物 斋', canvas.width / 2, 105);
+    ctx.fillStyle = 'rgba(201,169,97,.84)';
+    ctx.font = '24px "WenKai", "Songti SC", serif';
+    ctx.fillText(items.length + ' 件长物 · 水影笺', canvas.width / 2, 152);
+
+    const cell = 228, gap = 22, top = 198;
+    const startX = (canvas.width - cell * 3 - gap * 2) / 2;
+    const imageHeight = cell * 1040 / 720;
+    const rowPitch = imageHeight + 50;
+    items.forEach((work, index) => {
+      const row = index / 3 | 0, col = index % 3;
+      const x = startX + col * (cell + gap), y = top + row * rowPitch;
+      ctx.fillStyle = 'rgba(12,16,14,.86)';
+      ctx.fillRect(x - 8, y - 8, cell + 16, imageHeight + 16);
+      ctx.strokeStyle = 'rgba(201,169,97,.52)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 8, y - 8, cell + 16, imageHeight + 16);
+      ctx.drawImage(images[index], x, y, cell, imageHeight);
+      ctx.fillStyle = 'rgba(233,226,208,.78)';
+      ctx.font = '18px "WenKai", "Songti SC", serif';
+      ctx.fillText('第 ' + work.number + ' 号', x + cell / 2, y + imageHeight + 33);
+    });
+
+    ctx.fillStyle = 'rgba(233,226,208,.56)';
+    ctx.font = '22px "WenKai", "Songti SC", serif';
+    ctx.fillText('一滴墨，拓成纸上长物', canvas.width / 2, canvas.height - 58);
+    return canvas.toDataURL('image/jpeg', 0.9);
+  }
+
+  async function shareExhibit() {
+    if (!lastWorks.length) {
+      if (onShare) onShare(null, { empty: true });
+      return;
+    }
+    const button = view.querySelector('.gv-share');
+    button.disabled = true;
+    button.textContent = '合成中';
+    try {
+      const dataUrl = await composeExhibit(lastWorks);
+      onShare(dataUrl, { count: shareWorks(lastWorks).length });
+    } finally {
+      button.disabled = false;
+      button.textContent = '一键分享';
+    }
+  }
 
   function cardHTML(w, slot) {
     const carrier = w.carrier || 'sheet';
@@ -229,21 +320,24 @@ window.GALLERY = (function () {
 
   async function render() {
     const works = await all();
+    lastWorks = works;
     const slots = arrangeExhibits(works);
     const stored = works.filter(w => !w.featured);
     view.querySelectorAll('.gv-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === currentFilter));
     view.querySelector('.gv-count').textContent = works.length ? works.length + ' 件' : '';
+    view.querySelector('.gv-share').disabled = !works.length;
     const grid = view.querySelector('.gv-grid');
     const detail = view.querySelector('.gv-detail');
     detail.classList.add('hidden');
 
     let html = exhibitHTML(slots);
     if (currentFilter === 'all') {
-      const byCarrier = {
-        sheet: stored.filter(w => (w.carrier || 'sheet') === 'sheet'),
-        fan: stored.filter(w => (w.carrier || 'sheet') === 'fan'),
-        bookmark: stored.filter(w => (w.carrier || 'sheet') === 'bookmark'),
-      };
+      const byCarrier = {};
+      SECTIONS.forEach(section => { byCarrier[section.key] = []; });
+      stored.forEach(work => {
+        const key = sectionKey(work);
+        (byCarrier[key] || (byCarrier[key] = [])).push(work);
+      });
       SECTIONS.slice(1).forEach(section => {
         const items = byCarrier[section.key];
         if (items.length) html += sectionHTML(section.key, section.title, section.note, items);
@@ -306,5 +400,8 @@ window.GALLERY = (function () {
   function show() { ensureView(); render(); view.classList.add('show'); }
   function hide() { if (view) view.classList.remove('show'); }
 
-  return { add, all, remove, setFeatured, setSlot, show, hide, setHandlers: (o) => { onSave = o.save; onPost = o.post; } };
+  return {
+    add, all, remove, setFeatured, setSlot, show, hide,
+    setHandlers: (o) => { onSave = o.save; onPost = o.post; onShare = o.share; },
+  };
 })();

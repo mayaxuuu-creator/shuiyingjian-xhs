@@ -62,6 +62,15 @@
   function currentMaterial() {
     return (state.palette.materials || []).find(item => item.name === state.materialName) || null;
   }
+  function carrierName(key) {
+    return {
+      fan: '团扇',
+      fanfold: '折扇',
+      umbrella: '油纸伞',
+      porcelain: '瓷器',
+      bookmark: '书签',
+    }[key || 'sheet'] || '笺';
+  }
   function buildPalette() {
     paletteBox.innerHTML = '';
     state.palette.colors.forEach((c, i) => {
@@ -253,7 +262,7 @@
       state.carrier = btn.dataset.carrier;
       syncCarrierUI();
       renderSheet();
-      showToast('已入' + (state.carrier === 'sheet' ? '笺' : state.carrier === 'fan' ? '团扇' : '书签'));
+      showToast('已入' + carrierName(state.carrier));
     });
   });
 
@@ -344,10 +353,24 @@
     async save(dataUrl, num) { await saveDataUrl(dataUrl, num, !!(window.xhs && window.xhs.miniTool)); },
     post(work) {
       const dataUrl = work.dataUrl;
+      const carrier = work.carrierLabel || carrierName(work.carrier);
       postNoteDraft(dataUrl, {
-        title: ('水影笺 · 第' + work.number + '号「' + work.mind + '」').slice(0, 20),
-        body: '流沙笺 第 ' + work.number + ' 号 · 心相「' + work.mind + '」\n' + (work.poem || ''),
-        tags: '#水影笺 #国风 #非遗',
+        title: ('水影笺' + carrier + ' · 「' + work.mind + '」').slice(0, 20),
+        body: (work.theme || '流沙笺') + ' ' + carrier + ' · 第 ' + work.number + ' 号\n' +
+          '心相「' + work.mind + '」\n' + (work.poem || '') +
+          (work.material ? '\n器面 · ' + work.material : ''),
+        tags: '#水影笺 #长物斋 #国风美学 #非遗',
+      });
+    },
+    share(dataUrl, meta) {
+      if (!dataUrl) {
+        showToast(meta && meta.empty ? '长物斋还空着 · 先拓一张收入斋展' : '分享图未生成');
+        return;
+      }
+      postNoteDraft(dataUrl, {
+        title: '水影笺 · 长物斋小展',
+        body: '长物斋小展 · 收录 ' + (meta ? meta.count || 0 : 0) + ' 件水影长物。\n每一件都从一滴墨开始，拓成笺、扇、伞、瓷。',
+        tags: '#水影笺 #长物斋 #国风美学 #非遗',
       });
     },
   });
@@ -361,7 +384,7 @@
       poem: state.poem ? state.poem.text : '',
       theme: state.palette.identity || state.palette.label,
       carrier: state.carrier,
-      carrierLabel: state.carrier === 'fan' ? '团扇' : state.carrier === 'bookmark' ? '书签' : '笺',
+      carrierLabel: carrierName(state.carrier),
       material: currentMaterial() ? currentMaterial().name : '',
       ts: Date.now(),
       dataUrl: paperCanvas.toDataURL('image/jpeg', 0.86),

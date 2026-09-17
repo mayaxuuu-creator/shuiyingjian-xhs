@@ -312,11 +312,26 @@ window.RUBBING = (function () {
     const isMica = aux.type === 'mica';
     const region = carrier === 'fan'
       ? { x: 74, y: 114, w: 572, h: 572, cx: 360, cy: 400, r: 286, shape: 'circle' }
+        : carrier === 'fanfold'
+          ? { cx: 360, cy: 800, r0: 104, r1: 604, a0: Math.PI * 1.045, a1: Math.PI * 1.955, shape: 'fan' }
+        : carrier === 'umbrella'
+          ? { x: 84, y: 138, w: 552, h: 552, cx: 360, cy: 414, r: 276, shape: 'circle' }
+        : carrier === 'porcelain'
+          ? { x: 214, y: 212, w: 292, h: 636 }
       : carrier === 'bookmark'
         ? { x: 146, y: 44, w: 428, h: 952 }
         : { x: 42, y: 42, w: W - 84, h: H - 84 };
     const inside = (x, y) => region.shape === 'circle'
       ? ((x - region.cx) ** 2 + (y - region.cy) ** 2) <= (region.r - 16) ** 2
+        : region.shape === 'fan'
+          ? (() => {
+              const dx = x - region.cx, dy = y - region.cy;
+              const dist = Math.hypot(dx, dy);
+              let angle = Math.atan2(dy, dx);
+              while (angle < region.a0) angle += Math.PI * 2;
+              return dist >= region.r0 + 14 && dist <= region.r1 - 14 &&
+                angle >= region.a0 + 0.03 && angle <= region.a1 - 0.03;
+            })()
       : x >= region.x + 12 && x <= region.x + region.w - 12 &&
         y >= region.y + 12 && y <= region.y + region.h - 12;
 
@@ -387,6 +402,321 @@ window.RUBBING = (function () {
 
   /* 成器：同一张拓印可入笺、入团扇、入书签。
      不做简单裁图；每种载体重排器骨、边界与配件。 */
+  function displayScene(ctx, warm) {
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    if (warm) {
+      bg.addColorStop(0, '#f1eadb');
+      bg.addColorStop(.56, '#dcd2bd');
+      bg.addColorStop(1, '#b9ab93');
+    } else {
+      bg.addColorStop(0, '#e8e7de');
+      bg.addColorStop(.58, '#cfd0c6');
+      bg.addColorStop(1, '#9ea295');
+    }
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = .035;
+    ctx.strokeStyle = warm ? '#4d3d2a' : '#3f4741';
+    ctx.lineWidth = 1;
+    for (let y = 28; y < H; y += 14) {
+      ctx.beginPath(); ctx.moveTo(0, y + (y % 28) * .03); ctx.lineTo(W, y); ctx.stroke();
+    }
+    for (let x = 24; x < W; x += 18) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 2, H); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    const room = ctx.createRadialGradient(W * .5, H * .38, H * .18, W * .5, H * .52, H * .80);
+    room.addColorStop(0, warm ? 'rgba(255,252,240,.20)' : 'rgba(248,251,245,.20)');
+    room.addColorStop(.62, 'rgba(120,98,70,.05)');
+    room.addColorStop(1, warm ? 'rgba(58,45,30,.38)' : 'rgba(45,56,50,.38)');
+    ctx.fillStyle = room;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function displayStand(ctx, x, y, w) {
+    ctx.fillStyle = 'rgba(58,44,30,.24)';
+    roundRect(ctx, x + 8, y + 16, w - 16, 34, 16);
+    ctx.fill();
+    const stand = ctx.createLinearGradient(x, 0, x + w, 0);
+    stand.addColorStop(0, '#61472b');
+    stand.addColorStop(.24, '#8a653c');
+    stand.addColorStop(.52, '#c69a5d');
+    stand.addColorStop(.78, '#8a653c');
+    stand.addColorStop(1, '#574028');
+    ctx.fillStyle = stand;
+    roundRect(ctx, x, y, w, 36, 16);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,235,196,.20)';
+    roundRect(ctx, x + 18, y + 7, w - 36, 6, 4);
+    ctx.fill();
+  }
+
+  function drawFoldingFan(ctx, source) {
+    displayScene(ctx, true);
+    const cx = 360, cy = 800, r0 = 104, r1 = 604;
+    const a0 = Math.PI * 1.045, a1 = Math.PI * 1.955;
+    ctx.save();
+    ctx.filter = 'blur(22px)';
+    ctx.fillStyle = 'rgba(48,36,24,.34)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 14, cy - 452, 320, 66, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    displayStand(ctx, 182, 900, 356);
+
+    // 护骨与扇钉先入画，让扇面被实体结构托住。
+    ctx.lineCap = 'round';
+    [a0, a1].forEach(a => {
+      ctx.strokeStyle = 'rgba(58,40,22,.88)';
+      ctx.lineWidth = 15;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * 52, cy + Math.sin(a) * 52);
+      ctx.lineTo(cx + Math.cos(a) * (r1 + 13), cy + Math.sin(a) * (r1 + 13));
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(211,172,113,.92)';
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * 56, cy + Math.sin(a) * 56);
+      ctx.lineTo(cx + Math.cos(a) * (r1 + 11), cy + Math.sin(a) * (r1 + 11));
+      ctx.stroke();
+    });
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r1, a0, a1);
+    ctx.arc(cx, cy, r0, a1, a0, true);
+    ctx.closePath();
+    ctx.clip();
+    ctx.fillStyle = '#f4e9d0';
+    ctx.fillRect(cx - r1, cy - r1, r1 * 2, r1 * 2);
+    const crop = 576;
+    ctx.drawImage(source, (source.width - crop) / 2, (source.height - crop) * .34, crop, crop,
+      cx - 324, cy - 614, 648, 610);
+    const leaf = ctx.createLinearGradient(0, cy - r1, 0, cy);
+    leaf.addColorStop(0, 'rgba(255,250,234,.10)');
+    leaf.addColorStop(.58, 'rgba(255,255,255,0)');
+    leaf.addColorStop(1, 'rgba(70,50,25,.16)');
+    ctx.fillStyle = leaf;
+    ctx.fillRect(cx - r1, cy - r1, r1 * 2, r1 * 2);
+    for (let i = 1; i < 22; i++) {
+      const a = a0 + (a1 - a0) * i / 22;
+      ctx.strokeStyle = i % 2 ? 'rgba(58,40,22,.20)' : 'rgba(255,246,218,.20)';
+      ctx.lineWidth = i % 2 ? 1.1 : .8;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+      ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(69,48,26,.60)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r1 + 1, a0, a1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r0 - 1, a0, a1);
+    ctx.stroke();
+    ctx.fillStyle = '#43301c';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(227,193,138,.94)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#9d6a33';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 9);
+    ctx.quadraticCurveTo(cx + 13, cy + 45, cx - 3, cy + 76);
+    ctx.stroke();
+    ctx.fillStyle = '#a5382b';
+    roundRect(ctx, cx - 9, cy + 73, 13, 28, 6);
+    ctx.fill();
+  }
+
+  function drawUmbrella(ctx, source) {
+    displayScene(ctx, false);
+    const cx = 360, cy = 414, r = 278;
+    ctx.save();
+    ctx.filter = 'blur(20px)';
+    ctx.fillStyle = 'rgba(42,54,48,.34)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 16, cy + 38, r * 1.02, r * .96, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    displayStand(ctx, 216, 908, 288);
+    const shaft = ctx.createLinearGradient(cx - 8, 0, cx + 8, 0);
+    shaft.addColorStop(0, '#755532');
+    shaft.addColorStop(.38, '#bd9055');
+    shaft.addColorStop(.68, '#98703f');
+    shaft.addColorStop(1, '#6a4c2c');
+    ctx.fillStyle = shaft;
+    roundRect(ctx, cx - 8, 648, 16, 268, 8);
+    ctx.fill();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = '#f5ecd8';
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    const crop = 536;
+    ctx.drawImage(source, (source.width - crop) / 2, (source.height - crop) * .36, crop, crop,
+      cx - r, cy - r, r * 2, r * 2);
+    const oil = ctx.createRadialGradient(cx - r * .25, cy - r * .35, r * .08, cx, cy, r);
+    oil.addColorStop(0, 'rgba(255,252,235,.16)');
+    oil.addColorStop(.65, 'rgba(255,255,255,0)');
+    oil.addColorStop(1, 'rgba(46,42,26,.24)');
+    ctx.fillStyle = oil;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    for (let i = 0; i < 18; i++) {
+      const a = Math.PI * 2 * i / 18;
+      ctx.strokeStyle = 'rgba(76,55,27,.24)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,246,218,.09)';
+    ctx.lineWidth = 7;
+    for (let i = 0; i < 6; i++) {
+      const rr = r * (0.22 + i * .14);
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 伞裙与竹骨：顶视图也要看出“一把伞”，不是圆瓷盘。
+    for (let i = 0; i < 36; i++) {
+      const a = Math.PI * 2 * i / 36;
+      ctx.fillStyle = 'rgba(72,54,28,.70)';
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(a) * (r + 3), cy + Math.sin(a) * (r + 3), 7, 3.4, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(49,36,20,.62)';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(187,144,85,.58)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#7c5a34';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#bb9055';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,240,207,.36)';
+    ctx.beginPath();
+    ctx.arc(cx - 3, cy - 4, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function porcelainPath(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(322, 178);
+    ctx.lineTo(398, 178);
+    ctx.bezierCurveTo(402, 242, 394, 284, 366, 314);
+    ctx.bezierCurveTo(464, 342, 518, 428, 516, 552);
+    ctx.bezierCurveTo(514, 686, 448, 784, 384, 830);
+    ctx.lineTo(336, 830);
+    ctx.bezierCurveTo(272, 784, 206, 686, 204, 552);
+    ctx.bezierCurveTo(202, 428, 256, 342, 354, 314);
+    ctx.bezierCurveTo(326, 284, 318, 242, 322, 178);
+    ctx.closePath();
+  }
+
+  function drawPorcelain(ctx, source) {
+    displayScene(ctx, false);
+    const base = ctx.createLinearGradient(0, 856, 0, 936);
+    base.addColorStop(0, 'rgba(38,45,41,.32)');
+    base.addColorStop(1, 'rgba(38,45,41,.08)');
+    ctx.fillStyle = base;
+    ctx.beginPath();
+    ctx.ellipse(366, 900, 186, 31, 0, 0, Math.PI * 2);
+    ctx.fill();
+    displayStand(ctx, 218, 892, 296);
+
+    // 瓷胎底釉：先给形，再让墨纹被釉色吃进去。
+    porcelainPath(ctx);
+    const glaze = ctx.createLinearGradient(218, 190, 516, 850);
+    glaze.addColorStop(0, '#b9cfc5');
+    glaze.addColorStop(.42, '#8fb3a7');
+    glaze.addColorStop(.78, '#5f8a80');
+    glaze.addColorStop(1, '#3f655d');
+    ctx.fillStyle = glaze;
+    ctx.fill();
+
+    ctx.save();
+    porcelainPath(ctx);
+    ctx.clip();
+    const crop = 520;
+    ctx.globalAlpha = .52;
+    ctx.drawImage(source, (source.width - crop) / 2, (source.height - crop) * .38, crop, crop,
+      192, 188, 336, 656);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.fillStyle = '#7fa598';
+    ctx.fillRect(180, 160, 360, 700);
+    ctx.globalCompositeOperation = 'screen';
+    const gloss = ctx.createLinearGradient(250, 210, 452, 812);
+    gloss.addColorStop(0, 'rgba(255,255,248,.34)');
+    gloss.addColorStop(.24, 'rgba(255,255,255,.05)');
+    gloss.addColorStop(.58, 'rgba(255,255,255,0)');
+    gloss.addColorStop(1, 'rgba(224,245,236,.16)');
+    ctx.fillStyle = gloss;
+    ctx.fillRect(180, 160, 360, 700);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(255,255,255,.045)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 22; i++) {
+      const x = 210 + Math.random() * 300, y = 200 + Math.random() * 610;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + (Math.random() - .5) * 54, y + (Math.random() - .5) * 36, x + (Math.random() - .5) * 78, y + (Math.random() - .5) * 55);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    porcelainPath(ctx);
+    ctx.strokeStyle = 'rgba(37,61,55,.58)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = '#e8efe9';
+    roundRect(ctx, 318, 160, 84, 28, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(60,85,77,.58)';
+    ctx.lineWidth = 2.5;
+    roundRect(ctx, 318, 160, 84, 28, 10);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(228,238,232,.86)';
+    roundRect(ctx, 330, 822, 72, 22, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(60,85,77,.48)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, 330, 822, 72, 22, 8);
+    ctx.stroke();
+    ctx.save();
+    ctx.filter = 'blur(4px)';
+    ctx.strokeStyle = 'rgba(255,255,255,.30)';
+    ctx.lineWidth = 8;
+    porcelainPath(ctx);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function makeCarrier(source, carrier) {
     if (!source || carrier === 'sheet') return source;
     const canvas = document.createElement('canvas');
@@ -394,32 +724,20 @@ window.RUBBING = (function () {
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
+    if (carrier === 'fanfold') {
+      drawFoldingFan(ctx, source);
+      return canvas;
+    }
+    if (carrier === 'umbrella') {
+      drawUmbrella(ctx, source);
+      return canvas;
+    }
+    if (carrier === 'porcelain') {
+      drawPorcelain(ctx, source);
+      return canvas;
+    }
+
     if (carrier === 'fan') {
-      const bg = ctx.createLinearGradient(0, 0, W, H);
-      bg.addColorStop(0, '#f1eadb');
-      bg.addColorStop(.56, '#dcd2bd');
-      bg.addColorStop(1, '#b9ab93');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
-
-      // 展陈衬布：细经纬 + 暗角，让成品读作“陈列的器物”，不是一张纸上的贴图
-      ctx.globalAlpha = .035;
-      ctx.strokeStyle = '#4d3d2a';
-      ctx.lineWidth = 1;
-      for (let y = 28; y < H; y += 14) {
-        ctx.beginPath(); ctx.moveTo(0, y + (y % 28) * .03); ctx.lineTo(W, y); ctx.stroke();
-      }
-      for (let x = 24; x < W; x += 18) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 2, H); ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      const room = ctx.createRadialGradient(W * .5, H * .38, H * .18, W * .5, H * .52, H * .80);
-      room.addColorStop(0, 'rgba(255,252,240,.20)');
-      room.addColorStop(.62, 'rgba(120,98,70,.05)');
-      room.addColorStop(1, 'rgba(58,45,30,.38)');
-      ctx.fillStyle = room;
-      ctx.fillRect(0, 0, W, H);
-
       const cx = W / 2;
       const cy = 400;
       const r = 288;

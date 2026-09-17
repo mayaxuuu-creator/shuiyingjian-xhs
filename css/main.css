@@ -525,6 +525,10 @@ body {
   flex-wrap: wrap;
   justify-content: center;
 }
+#carrierSeg {
+  flex-wrap: wrap;
+  justify-content: center;
+}
 .finish-material {
   min-width: 36px;
   padding: 5px 8px;
@@ -882,6 +886,14 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
   color: rgba(201, 169, 97, 0.56);
   white-space: nowrap;
 }
+.gv-curation-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gv-share {
+  white-space: nowrap;
+}
 .gv-section {
   margin: 0 0 24px;
   padding: 0;
@@ -978,8 +990,14 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.52);
 }
 .carrier-fan .gv-frame { border-radius: 12px; }
+.carrier-fanfold .gv-frame { border-radius: 12px; }
+.carrier-umbrella .gv-frame { border-radius: 10px; }
+.carrier-porcelain .gv-frame { border-radius: 8px; }
 .carrier-bookmark .gv-frame { border-radius: 8px; }
 .carrier-fan .gv-frame img { object-position: center 30%; }
+.carrier-fanfold .gv-frame img { object-position: center 28%; }
+.carrier-umbrella .gv-frame img { object-position: center 30%; }
+.carrier-porcelain .gv-frame img { object-position: center 42%; }
 .carrier-featured .gv-frame {
   border-color: rgba(232, 206, 142, 0.78);
   box-shadow:
@@ -996,6 +1014,8 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.38);
 }
 .carrier-bookmark .gv-shelf { width: 86%; margin-left: auto; margin-right: auto; }
+.carrier-umbrella .gv-shelf,
+.carrier-porcelain .gv-shelf { width: 78%; margin-left: auto; margin-right: auto; }
 .gv-badge {
   position: absolute;
   top: 8px;
