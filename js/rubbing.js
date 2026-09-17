@@ -302,6 +302,80 @@ window.RUBBING = (function () {
     return { chars: [cs[0], cs[1], cs[2], '印'], font: 24, col3: true };
   }
 
+  /* 折扇只使用自己的 3:4 安全区；展开角收窄后，扇面横向不再触边。 */
+  function foldingFanGeometry() {
+    const cx = W / 2, cy = 836, r0 = 98, r1 = 430;
+    const a0 = Math.PI * 1.125, a1 = Math.PI * 1.875;
+    return {
+      cx, cy, r0, r1, a0, a1,
+      x: cx - r1 * Math.sin((a1 - a0) / 2) - 2,
+      y: cy - r1,
+      w: r1 * 2 * Math.sin((a1 - a0) / 2) + 4,
+      h: r1 - r0,
+      shape: 'fan',
+    };
+  }
+
+  function fanPath(ctx, fan, inset) {
+    const d = inset || 0;
+    ctx.beginPath();
+    ctx.arc(fan.cx, fan.cy, fan.r1 - d, fan.a0, fan.a1);
+    ctx.arc(fan.cx, fan.cy, fan.r0 + d, fan.a1, fan.a0, true);
+    ctx.closePath();
+  }
+
+  /* 扇面径向 UV：原图横轴映射展开角，纵轴映射扇骨半径。 */
+  function drawFanLeafArtwork(ctx, source, fan) {
+    if (!source || !source.width || !source.height) return;
+    const cropW = Math.min(624, source.width);
+    const cropH = Math.min(424, source.height);
+    const sx = (source.width - cropW) / 2;
+    const sy = (source.height - cropH) * .32;
+    const tex = document.createElement('canvas');
+    tex.width = cropW;
+    tex.height = cropH;
+    const tctx = tex.getContext('2d');
+    tctx.drawImage(source, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+    const src = tctx.getImageData(0, 0, cropW, cropH).data;
+
+    const x0 = Math.max(0, Math.floor(fan.cx - fan.r1));
+    const y0 = Math.max(0, Math.floor(fan.cy - fan.r1));
+    const x1 = Math.min(W - 1, Math.ceil(fan.cx + fan.r1));
+    const y1 = Math.min(H - 1, Math.ceil(fan.cy));
+    const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+    const leaf = ctx.createImageData(bw, bh);
+    const arc = fan.a1 - fan.a0;
+    for (let y = 0; y < bh; y++) {
+      const dy = y0 + y + .5 - fan.cy;
+      for (let x = 0; x < bw; x++) {
+        const dx = x0 + x + .5 - fan.cx;
+        const dist = Math.hypot(dx, dy);
+        if (dist < fan.r0 || dist > fan.r1) continue;
+        let angle = Math.atan2(dy, dx);
+        while (angle < fan.a0) angle += Math.PI * 2;
+        if (angle > fan.a1) continue;
+        const tx = Math.min(cropW - 1, (angle - fan.a0) / arc * (cropW - 1));
+        const ty = Math.min(cropH - 1, (1 - (dist - fan.r0) / (fan.r1 - fan.r0)) * (cropH - 1));
+        const si = ((ty | 0) * cropW + (tx | 0)) * 4;
+        const di = (y * bw + x) * 4;
+        leaf.data[di] = src[si];
+        leaf.data[di + 1] = src[si + 1];
+        leaf.data[di + 2] = src[si + 2];
+        leaf.data[di + 3] = src[si + 3];
+      }
+    }
+
+    const layer = document.createElement('canvas');
+    layer.width = bw;
+    layer.height = bh;
+    layer.getContext('2d').putImageData(leaf, 0, 0);
+    ctx.save();
+    fanPath(ctx, fan, 1);
+    ctx.clip();
+    ctx.drawImage(layer, x0, y0);
+    ctx.restore();
+  }
+
   /* 盘内辅料：每盘最多两种白名单辅料，一次只选一种。
      v3.7 改为"器面处理"：少而大的实物颗粒 + 投影/高光，缩略图也要一眼可读 */
   function drawAuxiliary(ctx, W, H, aux, carrier) {
@@ -313,7 +387,7 @@ window.RUBBING = (function () {
     const region = carrier === 'fan'
       ? { x: 74, y: 114, w: 572, h: 572, cx: 360, cy: 400, r: 286, shape: 'circle' }
         : carrier === 'fanfold'
-          ? { cx: 360, cy: 800, r0: 104, r1: 604, a0: Math.PI * 1.045, a1: Math.PI * 1.955, shape: 'fan' }
+          ? foldingFanGeometry()
         : carrier === 'umbrella'
           ? { x: 84, y: 138, w: 552, h: 552, cx: 360, cy: 414, r: 276, shape: 'circle' }
         : carrier === 'porcelain'
@@ -453,17 +527,17 @@ window.RUBBING = (function () {
 
   function drawFoldingFan(ctx, source) {
     displayScene(ctx, true);
-    const cx = 360, cy = 800, r0 = 104, r1 = 604;
-    const a0 = Math.PI * 1.045, a1 = Math.PI * 1.955;
+    const fan = foldingFanGeometry();
+    const { cx, cy, r0, r1, a0, a1 } = fan;
     ctx.save();
-    ctx.filter = 'blur(22px)';
+    ctx.filter = 'blur(24px)';
     ctx.fillStyle = 'rgba(48,36,24,.34)';
-    ctx.beginPath();
-    ctx.ellipse(cx + 14, cy - 452, 320, 66, 0, 0, Math.PI * 2);
+    ctx.translate(8, 36);
+    fanPath(ctx, fan, 4);
     ctx.fill();
     ctx.restore();
 
-    displayStand(ctx, 182, 900, 356);
+    displayStand(ctx, 172, 936, 376);
 
     // 护骨与扇钉先入画，让扇面被实体结构托住。
     ctx.lineCap = 'round';
@@ -483,25 +557,33 @@ window.RUBBING = (function () {
     });
 
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, r1, a0, a1);
-    ctx.arc(cx, cy, r0, a1, a0, true);
-    ctx.closePath();
+    fanPath(ctx, fan);
     ctx.clip();
     ctx.fillStyle = '#f4e9d0';
     ctx.fillRect(cx - r1, cy - r1, r1 * 2, r1 * 2);
-    const crop = 576;
-    ctx.drawImage(source, (source.width - crop) / 2, (source.height - crop) * .34, crop, crop,
-      cx - 324, cy - 614, 648, 610);
+    drawFanLeafArtwork(ctx, source, fan);
     const leaf = ctx.createLinearGradient(0, cy - r1, 0, cy);
-    leaf.addColorStop(0, 'rgba(255,250,234,.10)');
-    leaf.addColorStop(.58, 'rgba(255,255,255,0)');
-    leaf.addColorStop(1, 'rgba(70,50,25,.16)');
+    leaf.addColorStop(0, 'rgba(255,252,236,.13)');
+    leaf.addColorStop(.46, 'rgba(255,255,255,0)');
+    leaf.addColorStop(.84, 'rgba(78,54,26,.05)');
+    leaf.addColorStop(1, 'rgba(70,50,25,.20)');
     ctx.fillStyle = leaf;
     ctx.fillRect(cx - r1, cy - r1, r1 * 2, r1 * 2);
-    for (let i = 1; i < 22; i++) {
-      const a = a0 + (a1 - a0) * i / 22;
-      ctx.strokeStyle = i % 2 ? 'rgba(58,40,22,.20)' : 'rgba(255,246,218,.20)';
+    for (let i = 0; i < 20; i++) {
+      if (i % 2) {
+        const sa = a0 + (a1 - a0) * i / 20;
+        const ea = a0 + (a1 - a0) * (i + 1) / 20;
+        ctx.fillStyle = 'rgba(74,52,27,.045)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r1, sa, ea);
+        ctx.arc(cx, cy, r0, ea, sa, true);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    for (let i = 1; i < 20; i++) {
+      const a = a0 + (a1 - a0) * i / 20;
+      ctx.strokeStyle = i % 2 ? 'rgba(58,40,22,.19)' : 'rgba(255,246,218,.20)';
       ctx.lineWidth = i % 2 ? 1.1 : .8;
       ctx.beginPath();
       ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
@@ -512,11 +594,9 @@ window.RUBBING = (function () {
 
     ctx.strokeStyle = 'rgba(69,48,26,.60)';
     ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r1 + 1, a0, a1);
+    fanPath(ctx, fan, -1);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(cx, cy, r0 - 1, a0, a1);
+    fanPath(ctx, fan, 1);
     ctx.stroke();
     ctx.fillStyle = '#43301c';
     ctx.beginPath();
