@@ -326,7 +326,12 @@ window.GALLERY = (function () {
   }
 
   async function render() {
-    const works = await all();
+    /* 旧收藏没有 sourceUrl：用静态成器图兜底，让斋展里的老瓷瓶也能进入 3D 旋转。 */
+    const works = (await all()).map(work => (
+      work.carrier === 'porcelain' && !work.sourceUrl
+        ? Object.assign({}, work, { sourceUrl: work.previewUrl || work.dataUrl })
+        : work
+    ));
     lastWorks = works;
     const slots = arrangeExhibits(works);
     const stored = works.filter(w => !w.featured);

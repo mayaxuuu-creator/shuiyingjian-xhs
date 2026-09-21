@@ -46,7 +46,13 @@ window.PORCELAIN3D = (function () {
   function buildSourceCanvas(source) {
     const width = 480;
     const height = 760;
-    const crop = Math.min(520, source.width, Math.round(source.height * .625));
+    const targetAspect = width / height;
+    const crop = Math.min(
+      source.width,
+      source.height,
+      Math.round(source.height * targetAspect),
+      Math.round(source.width / targetAspect)
+    );
     const sx = (source.width - crop) / 2;
     const sy = (source.height - crop) * .36;
     const sourceCanvas = document.createElement('canvas');
