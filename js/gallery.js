@@ -289,8 +289,11 @@ window.GALLERY = (function () {
   function cardHTML(w, slot) {
     const carrier = w.carrier || 'sheet';
     const badge = slot === undefined ? (w.featured ? '斋展' : '') : '第 ' + (slot + 1) + ' 格';
+    const isLive = (carrier === 'umbrella' || carrier === 'porcelain') && w.previewUrl;
+    const imageSrc = isLive ? w.previewUrl : w.dataUrl;
+    const liveClass = isLive ? ' gv-live' : '';
     return '<div class="gv-card carrier-' + carrier + '" data-id="' + w.id + '">' +
-      '<div class="gv-frame"><img src="' + w.dataUrl + '" alt=""></div>' +
+      '<div class="gv-frame' + (isLive ? ' is-live' : '') + '"><img class="' + liveClass.trim() + '" src="' + imageSrc + '" alt=""></div>' +
       (badge ? '<span class="gv-badge">' + badge + '</span>' : '') +
       '<div class="gv-tag">第 ' + w.number + ' 号 · ' + esc(w.mind) + '</div>' +
       '<i class="gv-shelf"></i></div>';

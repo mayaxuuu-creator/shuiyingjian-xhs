@@ -302,9 +302,26 @@
   /* 长物斋/相册导出：瓷器同步当前 3D 器面；其余载体沿用静态导出。 */
   function currentCarrierImage(type, quality) {
     if (state.carrier === 'porcelain' && !porcelainCanvas.classList.contains('hidden')) {
-      return porcelainCanvas.toDataURL(type, quality);
+      const blacked = document.createElement('canvas');
+      blacked.width = porcelainCanvas.width;
+      blacked.height = porcelainCanvas.height;
+      const context = blacked.getContext('2d');
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, blacked.width, blacked.height);
+      context.drawImage(porcelainCanvas, 0, 0);
+      return blacked.toDataURL(type, quality);
     }
     return paperCanvas.toDataURL(type, quality);
+  }
+
+  function currentDynamicPreview() {
+    if (state.carrier === 'umbrella' && !umbrellaCanvas.classList.contains('hidden')) {
+      return umbrellaCanvas.toDataURL('image/jpeg', .86);
+    }
+    if (state.carrier === 'porcelain' && !porcelainCanvas.classList.contains('hidden')) {
+      return porcelainCanvas.toDataURL('image/jpeg', .88);
+    }
+    return '';
   }
 
   document.querySelectorAll('#modeSeg button').forEach(btn => {
@@ -467,6 +484,7 @@
       material: currentMaterial() ? currentMaterial().name : '',
       ts: Date.now(),
       dataUrl: currentCarrierImage('image/jpeg', 0.9),
+      previewUrl: currentDynamicPreview(),
     }).then(store => showToast(store === 'ls' ? '已入长物斋 ✓（本机轻量存储）' : '已入长物斋 ✓'))
       .catch(err => showToast('收藏失败 · ' + (err && err.message ? err.message.slice(0, 24) : '请稍后再试')));
   });

@@ -114,7 +114,7 @@ window.PORCELAIN3D = (function () {
 
     renderer = new THREE.WebGLRenderer({
       canvas: target,
-      alpha: false,
+      alpha: true,
       antialias: true,
       depth: true,
       preserveDrawingBuffer: true,
@@ -122,7 +122,7 @@ window.PORCELAIN3D = (function () {
     });
     renderer.setPixelRatio(dpr);
     renderer.setSize(cssWidth, cssHeight, false);
-    renderer.setClearColor(0x000000, 1);
+    renderer.setClearColor(0x000000, 0);
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.NoToneMapping;
     buildScene(source);
