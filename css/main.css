@@ -377,7 +377,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 14px;
   background: rgba(8, 11, 10, 0.78);
   -webkit-backdrop-filter: blur(7px);
@@ -387,15 +387,18 @@ body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 20px 0;
+  padding: 20px 0 32px;
 }
 #printOverlay.show { opacity: 1; }
 #printOverlay.hidden { display: none; }
+
+#printOverlay > * { flex: 0 0 auto; }
 
 #sheetCaption {
   font-size: 13px;
   letter-spacing: 0.3em;
   color: var(--paper-dim);
+  margin-bottom: 10px;
 }
 
 #paperSheet {
@@ -414,6 +417,46 @@ body {
   aspect-ratio: 720 / 1040;
   height: auto;
   border-radius: 4px;
+}
+
+#umbrellaCanvas { display: none; }
+#porcelainCanvas {
+  display: none;
+  background: #000;
+}
+#paperSheet.umbrella-preview {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+}
+#paperSheet.umbrella-preview #paperCanvas { display: none; }
+#paperSheet.umbrella-preview #umbrellaCanvas {
+  display: block;
+  width: min(84vw, 38dvh);
+  aspect-ratio: 1;
+  height: auto;
+  border-radius: 50%;
+  animation: umbrella-spin 36s linear infinite;
+}
+#paperSheet.porcelain-preview {
+  border-color: #000;
+  box-shadow: none;
+  background: #000;
+}
+#paperSheet.porcelain-preview #paperCanvas { display: none; }
+#paperSheet.porcelain-preview #porcelainCanvas {
+  display: block;
+  width: min(78vw, 46dvh);
+  aspect-ratio: 3 / 4;
+  height: auto;
+  border-radius: 12px;
+}
+@keyframes umbrella-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #paperSheet.umbrella-preview #umbrellaCanvas { animation: none; }
 }
 
 #resultBar {
@@ -650,7 +693,7 @@ body {
   border: 1px solid rgba(233, 226, 208, 0.22);
   border-radius: 999px;
   overflow: hidden;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 #modeSeg button {
   appearance: none;
@@ -661,11 +704,11 @@ body {
   font-size: 12.5px;
   letter-spacing: 0.2em;
   text-indent: 0.2em;
-  padding: 6px 16px;
+  padding: 8px 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 31px;
+  min-height: 34px;
   line-height: 1;
   cursor: pointer;
   transition: all 0.25s;

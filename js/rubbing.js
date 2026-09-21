@@ -302,10 +302,10 @@ window.RUBBING = (function () {
     return { chars: [cs[0], cs[1], cs[2], '印'], font: 24, col3: true };
   }
 
-  /* 折扇只使用自己的 3:4 安全区；展开角收窄后，扇面横向不再触边。 */
+  /* 折扇只使用自己的 3:4 安全区；扇骨从扇钉连续伸出，握柄不再悬空。 */
   function foldingFanGeometry() {
-    const cx = W / 2, cy = 836, r0 = 98, r1 = 430;
-    const a0 = Math.PI * 1.125, a1 = Math.PI * 1.875;
+    const cx = W / 2, cy = 678, r0 = 172, r1 = 430;
+    const a0 = Math.PI * 1.222222, a1 = Math.PI * 1.777778;
     return {
       cx, cy, r0, r1, a0, a1,
       x: cx - r1 * Math.sin((a1 - a0) / 2) - 2,
@@ -389,9 +389,9 @@ window.RUBBING = (function () {
         : carrier === 'fanfold'
           ? foldingFanGeometry()
         : carrier === 'umbrella'
-          ? { x: 84, y: 138, w: 552, h: 552, cx: 360, cy: 414, r: 276, shape: 'circle' }
+          ? { x: 24, y: 84, w: 672, h: 672, cx: 360, cy: 420, r: 332, shape: 'circle' }
         : carrier === 'porcelain'
-          ? { x: 214, y: 212, w: 292, h: 636 }
+          ? { x: 220, y: 246, w: 280, h: 588 }
       : carrier === 'bookmark'
         ? { x: 146, y: 44, w: 428, h: 952 }
         : { x: 42, y: 42, w: W - 84, h: H - 84 };
@@ -525,36 +525,101 @@ window.RUBBING = (function () {
     ctx.fill();
   }
 
+  /* 折扇独立托架：扇钉落在托梁凹口上，避免“悬空横杠”的观感。 */
+  function displayFanCradle(ctx, cx, cy) {
+    const baseX = 212, baseY = 792, baseW = 296, baseH = 36;
+    ctx.save();
+
+    // 托架投影
+    ctx.save();
+    ctx.filter = 'blur(14px)';
+    ctx.fillStyle = 'rgba(0,0,0,.38)';
+    roundRect(ctx, baseX + 16, baseY + 20, baseW - 32, 20, 10);
+    ctx.fill();
+    ctx.restore();
+
+    const wood = (x0, x1, light = .52) => {
+      const g = ctx.createLinearGradient(x0, 0, x1, 0);
+      g.addColorStop(0, '#5d4227');
+      g.addColorStop(.18, '#845d34');
+      g.addColorStop(light, '#c69a5d');
+      g.addColorStop(.84, '#845d34');
+      g.addColorStop(1, '#54402a');
+      return g;
+    };
+
+    // 底座
+    ctx.fillStyle = wood(baseX, baseX + baseW);
+    roundRect(ctx, baseX, baseY, baseW, baseH, 14);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,235,196,.20)';
+    roundRect(ctx, baseX + 16, baseY + 6, baseW - 32, 6, 4);
+    ctx.fill();
+
+    // 两根立柱
+    [cx - 96, cx + 68].forEach(x => {
+      ctx.fillStyle = wood(x, x + 28, .34);
+      roundRect(ctx, x, cy + 22, 28, baseY + baseH - cy - 22, 10);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,235,196,.14)';
+      roundRect(ctx, x + 5, cy + 30, 5, baseY + 8 - cy, 3);
+      ctx.fill();
+      ctx.fillStyle = wood(x - 3, x + 31, .34);
+      roundRect(ctx, x - 3, cy + 16, 34, 15, 7);
+      ctx.fill();
+    });
+
+    // 托梁：上缘略高于扇钉，形成托住的接触面
+    ctx.fillStyle = wood(cx - 126, cx + 126, .48);
+    roundRect(ctx, cx - 126, cy - 10, 252, 42, 12);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,235,196,.17)';
+    roundRect(ctx, cx - 108, cy - 3, 216, 6, 4);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(31,21,12,.22)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, cx - 126, cy - 10, 252, 42, 12);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function displayFanCradleNotch(ctx, cx, cy) {
+    const wood = ctx.createLinearGradient(cx - 34, 0, cx + 34, 0);
+    wood.addColorStop(0, '#5d4227');
+    wood.addColorStop(.22, '#845d34');
+    wood.addColorStop(.42, '#c69a5d');
+    wood.addColorStop(.78, '#845d34');
+    wood.addColorStop(1, '#54402a');
+    ctx.save();
+    ctx.fillStyle = wood;
+    roundRect(ctx, cx - 34, cy + 5, 68, 20, 9);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,235,196,.20)';
+    roundRect(ctx, cx - 25, cy + 9, 50, 4, 3);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* 折扇用暗场陈列：突出金骨与扇面，同时避免米色场景吃掉浅色纸面。 */
+  function displayNightScene(ctx) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+  }
+
   function drawFoldingFan(ctx, source) {
-    displayScene(ctx, true);
+    displayNightScene(ctx);
     const fan = foldingFanGeometry();
     const { cx, cy, r0, r1, a0, a1 } = fan;
     ctx.save();
     ctx.filter = 'blur(24px)';
     ctx.fillStyle = 'rgba(48,36,24,.34)';
-    ctx.translate(8, 36);
+    ctx.translate(6, 32);
     fanPath(ctx, fan, 4);
     ctx.fill();
     ctx.restore();
 
-    displayStand(ctx, 172, 936, 376);
-
-    // 护骨与扇钉先入画，让扇面被实体结构托住。
-    ctx.lineCap = 'round';
-    [a0, a1].forEach(a => {
-      ctx.strokeStyle = 'rgba(58,40,22,.88)';
-      ctx.lineWidth = 15;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * 52, cy + Math.sin(a) * 52);
-      ctx.lineTo(cx + Math.cos(a) * (r1 + 13), cy + Math.sin(a) * (r1 + 13));
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(211,172,113,.92)';
-      ctx.lineWidth = 10;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * 56, cy + Math.sin(a) * 56);
-      ctx.lineTo(cx + Math.cos(a) * (r1 + 11), cy + Math.sin(a) * (r1 + 11));
-      ctx.stroke();
-    });
+    displayFanCradle(ctx, cx, cy);
 
     ctx.save();
     fanPath(ctx, fan);
@@ -598,45 +663,92 @@ window.RUBBING = (function () {
     ctx.stroke();
     fanPath(ctx, fan, 1);
     ctx.stroke();
-    ctx.fillStyle = '#43301c';
+
+    // 参考博物馆折扇：扇钉下方是聚拢的暗色扇骨，护骨连续伸到扇面外侧。
+    ctx.save();
+    ctx.fillStyle = '#211812';
     ctx.beginPath();
-    ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r0 + 8, a0, a1);
+    ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = 'rgba(227,193,138,.94)';
+    ctx.lineCap = 'round';
+    for (let i = 1; i < 19; i++) {
+      const a = a0 + (a1 - a0) * i / 19;
+      ctx.strokeStyle = i % 2 ? 'rgba(244,233,208,.055)' : 'rgba(0,0,0,.20)';
+      ctx.lineWidth = i % 2 ? 2.2 : 1.4;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * 10, cy + Math.sin(a) * 10);
+      ctx.lineTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+      ctx.stroke();
+    }
+
+    [a0, a1].forEach((a, idx) => {
+      const tipX = cx + Math.cos(a) * (r1 + 15);
+      const tipY = cy + Math.sin(a) * (r1 + 15);
+      const rootX = cx + Math.cos(a) * 8;
+      const rootY = cy + Math.sin(a) * 8;
+      const wood = ctx.createLinearGradient(rootX, rootY, tipX, tipY);
+      if (idx) {
+        wood.addColorStop(0, '#6b3a1e');
+        wood.addColorStop(.48, '#a96033');
+        wood.addColorStop(.82, '#c97f45');
+        wood.addColorStop(1, '#7d4323');
+      } else {
+        wood.addColorStop(0, '#33231a');
+        wood.addColorStop(.52, '#5d3d28');
+        wood.addColorStop(.84, '#755033');
+        wood.addColorStop(1, '#452d1e');
+      }
+      ctx.strokeStyle = 'rgba(26,17,12,.86)';
+      ctx.lineWidth = 20;
+      ctx.beginPath();
+      ctx.moveTo(rootX, rootY);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+      ctx.strokeStyle = wood;
+      ctx.lineWidth = 15;
+      ctx.beginPath();
+      ctx.moveTo(rootX + Math.cos(a) * 2, rootY + Math.sin(a) * 2);
+      ctx.lineTo(tipX - Math.cos(a) * 3, tipY - Math.sin(a) * 3);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,216,152,.22)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(rootX - Math.sin(a) * 4, rootY + Math.cos(a) * 4);
+      ctx.lineTo(tipX - Math.sin(a) * 4, tipY + Math.cos(a) * 4);
+      ctx.stroke();
+    });
+
+    const rivet = ctx.createRadialGradient(cx - 4, cy - 5, 1, cx, cy, 15);
+    rivet.addColorStop(0, '#5b4530');
+    rivet.addColorStop(.55, '#2c2018');
+    rivet.addColorStop(1, '#120d09');
+    ctx.fillStyle = rivet;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(226,194,140,.82)';
     ctx.beginPath();
     ctx.arc(cx, cy, 5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#9d6a33';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + 9);
-    ctx.quadraticCurveTo(cx + 13, cy + 45, cx - 3, cy + 76);
-    ctx.stroke();
-    ctx.fillStyle = '#a5382b';
-    roundRect(ctx, cx - 9, cy + 73, 13, 28, 6);
-    ctx.fill();
+    ctx.restore();
+
+    // 扇钉前方的托口最后补画，让扇钉真正“坐”进托架。
+    displayFanCradleNotch(ctx, cx, cy);
   }
 
   function drawUmbrella(ctx, source) {
-    displayScene(ctx, false);
-    const cx = 360, cy = 414, r = 278;
+    /* 油纸伞改为完整伞面特写：保留暗场衬托，不再出现立杆与底架。 */
+    displayNightScene(ctx);
+    const cx = 360, cy = 420, r = 332;
     ctx.save();
-    ctx.filter = 'blur(20px)';
-    ctx.fillStyle = 'rgba(42,54,48,.34)';
+    ctx.filter = 'blur(26px)';
+    ctx.fillStyle = 'rgba(0,0,0,.36)';
     ctx.beginPath();
-    ctx.ellipse(cx + 16, cy + 38, r * 1.02, r * .96, 0, 0, Math.PI * 2);
+    ctx.arc(cx + 8, cy + 14, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-
-    displayStand(ctx, 216, 908, 288);
-    const shaft = ctx.createLinearGradient(cx - 8, 0, cx + 8, 0);
-    shaft.addColorStop(0, '#755532');
-    shaft.addColorStop(.38, '#bd9055');
-    shaft.addColorStop(.68, '#98703f');
-    shaft.addColorStop(1, '#6a4c2c');
-    ctx.fillStyle = shaft;
-    roundRect(ctx, cx - 8, 648, 16, 268, 8);
-    ctx.fill();
 
     ctx.save();
     ctx.beginPath();
@@ -644,9 +756,13 @@ window.RUBBING = (function () {
     ctx.clip();
     ctx.fillStyle = '#f5ecd8';
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-    const crop = 536;
+    const crop = 576;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = .96;
     ctx.drawImage(source, (source.width - crop) / 2, (source.height - crop) * .36, crop, crop,
       cx - r, cy - r, r * 2, r * 2);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
     const oil = ctx.createRadialGradient(cx - r * .25, cy - r * .35, r * .08, cx, cy, r);
     oil.addColorStop(0, 'rgba(255,252,235,.16)');
     oil.addColorStop(.65, 'rgba(255,255,255,0)');
@@ -706,51 +822,53 @@ window.RUBBING = (function () {
 
   function porcelainPath(ctx) {
     ctx.beginPath();
-    ctx.moveTo(322, 178);
-    ctx.lineTo(398, 178);
-    ctx.bezierCurveTo(402, 242, 394, 284, 366, 314);
-    ctx.bezierCurveTo(464, 342, 518, 428, 516, 552);
-    ctx.bezierCurveTo(514, 686, 448, 784, 384, 830);
-    ctx.lineTo(336, 830);
-    ctx.bezierCurveTo(272, 784, 206, 686, 204, 552);
-    ctx.bezierCurveTo(202, 428, 256, 342, 354, 314);
-    ctx.bezierCurveTo(326, 284, 318, 242, 322, 178);
+    ctx.moveTo(282, 178);
+    ctx.bezierCurveTo(302, 162, 418, 162, 438, 178);
+    ctx.bezierCurveTo(428, 246, 398, 300, 394, 370);
+    ctx.bezierCurveTo(390, 436, 404, 494, 442, 548);
+    ctx.bezierCurveTo(500, 608, 520, 676, 514, 738);
+    ctx.bezierCurveTo(506, 812, 472, 858, 430, 880);
+    ctx.lineTo(290, 880);
+    ctx.bezierCurveTo(248, 858, 214, 812, 206, 738);
+    ctx.bezierCurveTo(200, 676, 220, 608, 278, 548);
+    ctx.bezierCurveTo(316, 494, 330, 436, 326, 370);
+    ctx.bezierCurveTo(322, 300, 292, 246, 282, 178);
     ctx.closePath();
   }
 
   function drawPorcelain(ctx, source) {
-    displayScene(ctx, false);
-    const base = ctx.createLinearGradient(0, 856, 0, 936);
-    base.addColorStop(0, 'rgba(38,45,41,.32)');
-    base.addColorStop(1, 'rgba(38,45,41,.08)');
+    displayNightScene(ctx);
+    const base = ctx.createLinearGradient(0, 864, 0, 952);
+    base.addColorStop(0, 'rgba(0,0,0,.36)');
+    base.addColorStop(1, 'rgba(0,0,0,.06)');
     ctx.fillStyle = base;
     ctx.beginPath();
-    ctx.ellipse(366, 900, 186, 31, 0, 0, Math.PI * 2);
+    ctx.ellipse(360, 908, 190, 32, 0, 0, Math.PI * 2);
     ctx.fill();
-    displayStand(ctx, 218, 892, 296);
 
     // 瓷胎底釉：先给形，再让墨纹被釉色吃进去。
     porcelainPath(ctx);
-    const glaze = ctx.createLinearGradient(218, 190, 516, 850);
-    glaze.addColorStop(0, '#b9cfc5');
-    glaze.addColorStop(.42, '#8fb3a7');
-    glaze.addColorStop(.78, '#5f8a80');
-    glaze.addColorStop(1, '#3f655d');
+    const glaze = ctx.createLinearGradient(210, 176, 534, 896);
+    glaze.addColorStop(0, '#eef3d7');
+    glaze.addColorStop(.28, '#d3e0b4');
+    glaze.addColorStop(.60, '#b8c99a');
+    glaze.addColorStop(.88, '#95aa7d');
+    glaze.addColorStop(1, '#76885f');
     ctx.fillStyle = glaze;
     ctx.fill();
 
     ctx.save();
     porcelainPath(ctx);
     ctx.clip();
-    const crop = 520;
-    ctx.globalAlpha = .52;
-    ctx.drawImage(source, (source.width - crop) / 2, (source.height - crop) * .38, crop, crop,
-      192, 188, 336, 656);
+    const crop = Math.min(source.width, Math.round(source.height * .625));
     ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'soft-light';
-    ctx.fillStyle = '#7fa598';
-    ctx.fillRect(180, 160, 360, 700);
-    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(source, (source.width - crop) / 2, (source.height - crop) * .38, crop, crop,
+      210, 240, 300, 600);
+    ctx.globalAlpha = 1;
+    ctx.globalAlpha = .10;
+    ctx.fillStyle = '#f4f8e2';
+    ctx.fillRect(206, 238, 308, 604);
+    ctx.globalAlpha = 1;
     const gloss = ctx.createLinearGradient(250, 210, 452, 812);
     gloss.addColorStop(0, 'rgba(255,255,248,.34)');
     gloss.addColorStop(.24, 'rgba(255,255,255,.05)');
@@ -758,9 +876,31 @@ window.RUBBING = (function () {
     gloss.addColorStop(1, 'rgba(224,245,236,.16)');
     ctx.fillStyle = gloss;
     ctx.fillRect(180, 160, 360, 700);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = 'rgba(255,255,255,.045)';
+    ctx.strokeStyle = 'rgba(84,62,38,.13)';
     ctx.lineWidth = 1;
+    for (let i = 0; i < 74; i++) {
+      const x = 200 + Math.random() * 320, y = 190 + Math.random() * 680;
+      const seg = 3 + ((Math.random() * 4) | 0);
+      let px = x, py = y, pa = Math.random() * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      for (let s = 0; s < seg; s++) {
+        pa += (Math.random() - .5) * 1.15;
+        px += Math.cos(pa) * (16 + Math.random() * 34);
+        py += Math.sin(pa) * (12 + Math.random() * 26);
+        ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    for (let i = 0; i < 16; i++) {
+      const x = 216 + Math.random() * 288, y = 210 + Math.random() * 620;
+      ctx.strokeStyle = 'rgba(126,92,48,.16)';
+      ctx.lineWidth = .55;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + (Math.random() - .5) * 74, y + (Math.random() - .5) * 48, x + (Math.random() - .5) * 102, y + (Math.random() - .5) * 72);
+      ctx.stroke();
+    }
     for (let i = 0; i < 22; i++) {
       const x = 210 + Math.random() * 300, y = 200 + Math.random() * 610;
       ctx.beginPath();
@@ -774,27 +914,22 @@ window.RUBBING = (function () {
     ctx.strokeStyle = 'rgba(37,61,55,.58)';
     ctx.lineWidth = 4;
     ctx.stroke();
-    ctx.fillStyle = '#e8efe9';
-    roundRect(ctx, 318, 160, 84, 28, 10);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(60,85,77,.58)';
-    ctx.lineWidth = 2.5;
-    roundRect(ctx, 318, 160, 84, 28, 10);
+    ctx.strokeStyle = 'rgba(234,243,214,.58)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(284, 178);
+    ctx.bezierCurveTo(303, 163, 417, 163, 436, 178);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(228,238,232,.86)';
-    roundRect(ctx, 330, 822, 72, 22, 8);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(60,85,77,.48)';
+    ctx.strokeStyle = 'rgba(70,82,55,.34)';
     ctx.lineWidth = 2;
-    roundRect(ctx, 330, 822, 72, 22, 8);
+    ctx.beginPath();
+    ctx.moveTo(292, 880);
+    ctx.lineTo(428, 880);
     ctx.stroke();
-    ctx.save();
-    ctx.filter = 'blur(4px)';
-    ctx.strokeStyle = 'rgba(255,255,255,.30)';
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = 'rgba(255,255,255,.18)';
+    ctx.lineWidth = 3;
     porcelainPath(ctx);
     ctx.stroke();
-    ctx.restore();
   }
 
   function makeCarrier(source, carrier) {
@@ -821,6 +956,7 @@ window.RUBBING = (function () {
       const cx = W / 2;
       const cy = 400;
       const r = 288;
+      displayNightScene(ctx);
 
       // 器物投影与立架
       ctx.save();
@@ -943,8 +1079,7 @@ window.RUBBING = (function () {
     }
 
     if (carrier === 'bookmark') {
-      ctx.fillStyle = '#ece7d8';
-      ctx.fillRect(0, 0, W, H);
+      displayNightScene(ctx);
       const x = 146;
       const y = 44;
       const w = 428;

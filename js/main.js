@@ -44,6 +44,9 @@
   const hint = $('#hint');
   const overlay = $('#printOverlay');
   const paperCanvas = $('#paperCanvas');
+  const umbrellaCanvas = $('#umbrellaCanvas');
+  const porcelainCanvas = $('#porcelainCanvas');
+  const paperSheet = $('#paperSheet');
   const resultBar = $('#resultBar');
   const caption = $('#sheetCaption');
   const shareCard = $('#shareCard');
@@ -151,6 +154,22 @@
       btn.classList.toggle('active', btn.dataset.carrier === state.carrier));
   }
 
+  /* 非笺载体的导出画面默认走素笺：避免题签/编号压在器物上。 */
+  function renderPure() {
+    return state.pure;
+  }
+
+  function syncModeUI() {
+    document.querySelectorAll('#modeSeg button').forEach(btn =>
+      btn.classList.toggle('active', (btn.dataset.mode === 'pure') === renderPure()));
+  }
+
+  function syncCaption() {
+    if (!state.mind || !state.number) return;
+    caption.textContent = '第 ' + state.number + ' 号' +
+      (renderPure() ? ' · 素笺' : ' · 心相「' + state.mind.name + '」');
+  }
+
   function setTheme(palette) {
     state.palette = palette;
     state.colorIndex = palette.defaultIndex;
@@ -229,7 +248,7 @@
       number: state.number,
       mind: state.mind,
       poem: state.poem,
-      pure: state.pure,
+      pure: renderPure(),
       sealName: state.sealName,
       material: state.palette.material,
       suite: state.palette.key,
@@ -243,6 +262,49 @@
     paperCanvas.width = RUBBING.W;
     paperCanvas.height = RUBBING.H;
     paperCanvas.getContext('2d').drawImage(carried, 0, 0);
+    syncUmbrellaPreview();
+    syncPorcelainPreview(sheet);
+  }
+
+  /* 油纸伞的动态预览：预览层只保留圆形伞面，保存/发笔记仍用 paperCanvas 的静态导出图。 */
+  function syncUmbrellaPreview() {
+    if (state.carrier !== 'umbrella') {
+      paperSheet.classList.remove('umbrella-preview');
+      umbrellaCanvas.classList.add('hidden');
+      return;
+    }
+    umbrellaCanvas.classList.remove('hidden');
+    paperSheet.classList.add('umbrella-preview');
+    umbrellaCanvas.width = 720;
+    umbrellaCanvas.height = 720;
+    const uctx = umbrellaCanvas.getContext('2d');
+    uctx.clearRect(0, 0, 720, 720);
+    uctx.drawImage(paperCanvas, 0, 40, 720, 720, 0, 0, 720, 720);
+    uctx.globalCompositeOperation = 'destination-in';
+    uctx.beginPath();
+    uctx.arc(360, 380, 332, 0, Math.PI * 2);
+    uctx.fill();
+    uctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* 瓷器使用轻量 WebGL 预览；WebGL 不可用时自动回落到 2D 静态导出图。 */
+  function syncPorcelainPreview(sheet) {
+    if (state.carrier !== 'porcelain' || !window.PORCELAIN3D || !window.PORCELAIN3D.show(porcelainCanvas, sheet)) {
+      window.PORCELAIN3D && window.PORCELAIN3D.stop();
+      porcelainCanvas.classList.add('hidden');
+      paperSheet.classList.remove('porcelain-preview');
+      return;
+    }
+    porcelainCanvas.classList.remove('hidden');
+    paperSheet.classList.add('porcelain-preview');
+  }
+
+  /* 长物斋/相册导出：瓷器同步当前 3D 器面；其余载体沿用静态导出。 */
+  function currentCarrierImage(type, quality) {
+    if (state.carrier === 'porcelain' && !porcelainCanvas.classList.contains('hidden')) {
+      return porcelainCanvas.toDataURL(type, quality);
+    }
+    return paperCanvas.toDataURL(type, quality);
   }
 
   document.querySelectorAll('#modeSeg button').forEach(btn => {
@@ -251,8 +313,7 @@
       state.pure = btn.dataset.mode === 'pure';
       document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('active', b === btn));
       renderSheet();
-      caption.textContent = '第 ' + state.number + ' 号' +
-        (state.pure ? ' · 素笺' : ' · 心相「' + state.mind.name + '」');
+      syncCaption();
     });
   });
 
@@ -260,8 +321,12 @@
     btn.addEventListener('click', () => {
       if (!state.lastPixels) return;
       state.carrier = btn.dataset.carrier;
+      if (state.carrier !== 'sheet') state.pure = true;
       syncCarrierUI();
+      syncModeUI();
       renderSheet();
+      syncCaption();
+      applyShareCarrier();
       showToast('已入' + carrierName(state.carrier));
     });
   });
@@ -274,7 +339,7 @@
 
   // ---------- 保存（容器 JSBridge 相册直存） ----------
   $('#saveBtn').addEventListener('click', () => {
-    saveDataUrl(paperCanvas.toDataURL('image/png'), state.number, true);
+    saveDataUrl(currentCarrierImage('image/png'), state.number, true);
   });
 
   async function saveDataUrl(dataUrl, num, inContainer) {
@@ -294,15 +359,29 @@
   // ---------- 分享文案 ----------
   function renderShare() {
     state.share = MIND.shareCopy(state.number, state.mind, state.poem);
+    applyShareCarrier();
+  }
+
+  function applyShareCarrier() {
+    if (!state.share) {
+      state.share = MIND.shareCopy(state.number, state.mind, state.poem);
+    }
+    const carrier = carrierName(state.carrier);
+    const suffix = carrier === '笺' ? '' : carrier;
+    const mindName = state.mind ? state.mind.name : '无相';
+    state.share.title = ('水影笺' + suffix + ' · 「' + mindName + '」').slice(0, 20);
+    state.share.body = state.share.body.replace(/\n成器 · [^\n]+/g, '') +
+      (suffix ? '\n成器 · ' + suffix : '');
     $('#shareTitle').textContent = state.share.title;
     $('#shareBody').textContent = state.share.body;
     $('#shareTags').textContent = state.share.tags;
   }
+
   $('#shareShuffle').addEventListener('click', renderShare);
 
   // ---------- 发笔记（容器桥接 postNote） ----------
   $('#postBtn').addEventListener('click', () => postNoteDraft(
-    paperCanvas.toDataURL('image/png'),
+    currentCarrierImage('image/png'),
     state.share && { title: state.share.title, body: state.share.body, tags: state.share.tags }
   ));
 
@@ -387,7 +466,7 @@
       carrierLabel: carrierName(state.carrier),
       material: currentMaterial() ? currentMaterial().name : '',
       ts: Date.now(),
-      dataUrl: paperCanvas.toDataURL('image/jpeg', 0.86),
+      dataUrl: currentCarrierImage('image/jpeg', 0.9),
     }).then(store => showToast(store === 'ls' ? '已入长物斋 ✓（本机轻量存储）' : '已入长物斋 ✓'))
       .catch(err => showToast('收藏失败 · ' + (err && err.message ? err.message.slice(0, 24) : '请稍后再试')));
   });

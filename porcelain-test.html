@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>瓷器 3D 测试</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #000; color: #d9d2bf; font-family: "Songti SC", serif; display: grid; place-items: center; }
+    main { text-align: center; }
+    canvas { width: min(82vw, 62dvh); aspect-ratio: 3 / 4; background: #000; border-radius: 12px; }
+    p { letter-spacing: .35em; margin: 14px 0 0; font-size: 12px; color: rgba(217,210,191,.62); }
+  </style>
+</head>
+<body>
+  <main>
+    <canvas id="porcelainCanvas"></canvas>
+    <p>瓷器 3D 预览</p>
+  </main>
+  <script src="./js/vendor/three.min.js?v=0.128.0"></script><script src="./js/porcelain.js?v=3.9.12"></script>
+  <script>
+    (function () {
+      const source = document.createElement('canvas');
+      source.width = 720;
+      source.height = 1040;
+      const ctx = source.getContext('2d');
+      const base = ctx.createLinearGradient(0, 0, 720, 1040);
+      base.addColorStop(0, '#dfe9c8');
+      base.addColorStop(.48, '#b8c9a0');
+      base.addColorStop(1, '#94a980');
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, 720, 1040);
+      for (let i = 0; i < 48; i++) {
+        const x = 80 + Math.random() * 560;
+        const y = 180 + Math.random() * 680;
+        const r = 28 + Math.random() * 84;
+        const g = ctx.createRadialGradient(x, y, 1, x, y, r);
+        g.addColorStop(0, 'rgba(255,252,232,.42)');
+        g.addColorStop(.65, 'rgba(86,122,92,.14)');
+        g.addColorStop(1, 'rgba(86,122,92,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      for (let i = 0; i < 80; i++) {
+        ctx.strokeStyle = 'rgba(92,68,40,.07)';
+        ctx.lineWidth = .6 + Math.random() * .6;
+        ctx.beginPath();
+        let x = 120 + Math.random() * 480;
+        let y = 220 + Math.random() * 600;
+        ctx.moveTo(x, y);
+        for (let s = 0; s < 4; s++) {
+          x += (Math.random() - .5) * 68;
+          y += (Math.random() - .5) * 52;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      const show = () => window.PORCELAIN3D.show(document.getElementById('porcelainCanvas'), source);
+      if (document.readyState === 'complete') show();
+      else window.addEventListener('load', show);
+    })();
+  </script>
+</body>
+</html>
