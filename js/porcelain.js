@@ -228,3 +228,190 @@ window.PORCELAIN3D = (function () {
     destroy
   };
 })();
+
+/* 长物斋里的真实 3D 旋转：每个可见瓷瓶一个轻量实例，离屏自动暂停。 */
+window.PORCELAIN_GALLERY3D = (function () {
+  'use strict';
+
+  const instances = new Map();
+  const PROFILE_CONTROL = [
+    [0, 902], [30, 896], [66, 884], [104, 840], [138, 782],
+    [176, 714], [204, 638], [216, 560], [202, 492], [176, 434],
+    [150, 384], [130, 338], [116, 294], [108, 252], [104, 218],
+    [112, 192], [126, 176], [88, 166], [0, 158]
+  ];
+  const SEGMENTS = 128;
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const instance = instances.get(entry.target);
+      if (!instance) return;
+      instance.visible = entry.isIntersecting;
+      if (instance.visible && !document.hidden) instance.start();
+      else instance.stop();
+    });
+  }, { threshold: .05 });
+
+  function buildGeometry() {
+    const points = PROFILE_CONTROL.map(point => new THREE.Vector2(point[0] / 100, (530 - point[1]) / 100));
+    const geometry = new THREE.LatheGeometry(points, SEGMENTS);
+    geometry.computeVertexNormals();
+    const position = geometry.attributes.position;
+    const uv = new Float32Array(position.count * 2);
+    for (let i = 0; i < position.count; i++) {
+      uv[i * 2] = (position.getX(i) + 2.4) / 4.8;
+      uv[i * 2 + 1] = (position.getY(i) + 3.8) / 7.6;
+    }
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    return geometry;
+  }
+
+  function loadImage(source) {
+    return new Promise((resolve, reject) => {
+      if (source && source.width && source.height) {
+        resolve(source);
+        return;
+      }
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('瓷器展品纹理加载失败'));
+      image.src = source;
+    });
+  }
+
+  function buildTexture(image) {
+    const width = 480;
+    const height = 760;
+    const crop = Math.min(520, image.width, Math.round(image.height * .625));
+    const sx = (image.width - crop) / 2;
+    const sy = (image.height - crop) * .36;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(image, sx, sy, crop, crop, 0, 0, width, height);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.encoding = THREE.sRGBEncoding;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+  function destroy(canvas) {
+    const instance = instances.get(canvas);
+    if (!instance) return;
+    observer.unobserve(canvas);
+    instance.stop();
+    instance.group.remove(instance.mesh);
+    instance.mesh.geometry.dispose();
+    instance.material.dispose();
+    instance.texture.dispose();
+    instance.renderer.dispose();
+    instances.delete(canvas);
+  }
+
+  function unmountAll(root) {
+    Array.from(instances.keys()).forEach(canvas => {
+      if (!root || root.contains(canvas) || !canvas.isConnected) destroy(canvas);
+    });
+  }
+
+  function mount(target, source) {
+    if (!window.THREE || !target || instances.has(target)) return false;
+    const instance = { canvas: target, visible: false, running: false, rafId: 0, start: 0, lastTime: 0 };
+    instances.set(target, instance);
+
+    instance.start = () => {
+      if (!instance.renderer || instance.running || !instance.visible || document.hidden) return;
+      instance.running = true;
+      instance.start = performance.now();
+      if (!instance.rafId) instance.rafId = requestAnimationFrame(instance.renderFrame);
+    };
+    instance.stop = () => {
+      instance.running = false;
+      if (instance.rafId) cancelAnimationFrame(instance.rafId);
+      instance.rafId = 0;
+      instance.lastTime = 0;
+    };
+    instance.renderFrame = time => {
+      if (!instance.running || !instance.renderer) return;
+      if (time - instance.lastTime < 40) {
+        instance.rafId = requestAnimationFrame(instance.renderFrame);
+        return;
+      }
+      if (!instance.lastTime) instance.lastTime = time;
+      instance.group.rotation.y = (time - instance.start) * .00034;
+      instance.group.rotation.x = -.015;
+      instance.renderer.render(instance.scene, instance.camera);
+      instance.rafId = requestAnimationFrame(instance.renderFrame);
+    };
+
+    loadImage(source).then(image => {
+      if (!target.isConnected) {
+        destroy(target);
+        return;
+      }
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const cssWidth = target.clientWidth || 220;
+      const cssHeight = target.clientHeight || 300;
+      target.width = Math.round(cssWidth * dpr);
+      target.height = Math.round(cssHeight * dpr);
+
+      instance.renderer = new THREE.WebGLRenderer({
+        canvas: target,
+        alpha: true,
+        antialias: true,
+        depth: true,
+        powerPreference: 'low-power'
+      });
+      instance.renderer.setPixelRatio(dpr);
+      instance.renderer.setSize(cssWidth, cssHeight, false);
+      instance.renderer.setClearColor(0x000000, 0);
+      instance.renderer.outputEncoding = THREE.sRGBEncoding;
+      instance.renderer.toneMapping = THREE.NoToneMapping;
+
+      instance.scene = new THREE.Scene();
+      instance.camera = new THREE.PerspectiveCamera(34, cssWidth / Math.max(1, cssHeight), .2, 30);
+      instance.camera.position.set(0, .08, 13.8);
+      instance.camera.lookAt(0, .02, 0);
+
+      instance.group = new THREE.Group();
+      instance.scene.add(instance.group);
+      instance.texture = buildTexture(image);
+      instance.material = new THREE.MeshPhysicalMaterial({
+        map: instance.texture,
+        color: new THREE.Color(1, 1, 1),
+        roughness: .24,
+        metalness: 0,
+        clearcoat: 1,
+        clearcoatRoughness: .08,
+        envMapIntensity: .55
+      });
+      instance.mesh = new THREE.Mesh(buildGeometry(), instance.material);
+      instance.group.add(instance.mesh);
+
+      instance.scene.add(new THREE.AmbientLight(0xfff6e2, .72));
+      instance.scene.add(new THREE.HemisphereLight(0xe7efd2, 0x050505, .38));
+      const keyLight = new THREE.DirectionalLight(0xfff8e8, .78);
+      keyLight.position.set(-3.2, 4.2, 6.2);
+      instance.scene.add(keyLight);
+      const fillLight = new THREE.DirectionalLight(0xd8e8d0, .22);
+      fillLight.position.set(4.5, .8, 3.0);
+      instance.scene.add(fillLight);
+      const rimLight = new THREE.DirectionalLight(0xe8f5d8, .36);
+      rimLight.position.set(1.5, 2.4, -6.5);
+      instance.scene.add(rimLight);
+
+      observer.observe(target);
+      instance.visible = true;
+      instance.start();
+    }).catch(error => {
+      console.warn('PORCELAIN_GALLERY3D fallback:', error);
+      destroy(target);
+    });
+    return true;
+  }
+
+  return { mount, unmount: destroy, unmountAll };
+})();

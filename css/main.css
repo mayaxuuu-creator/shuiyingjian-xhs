@@ -1065,6 +1065,12 @@ html.no-flex-gap .gv-big { width: 82vw; max-width: 300px; height: auto; }
   object-fit: contain;
   animation: gallery-live-spin 30s linear infinite;
 }
+.gv-frame.is-live canvas.gv-three {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .carrier-umbrella.gv-card .gv-frame.is-live,
 .gv-card.carrier-umbrella .gv-frame.is-live,
 .gv-card.carrier-porcelain .gv-frame.is-live {

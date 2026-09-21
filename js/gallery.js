@@ -290,10 +290,14 @@ window.GALLERY = (function () {
     const carrier = w.carrier || 'sheet';
     const badge = slot === undefined ? (w.featured ? '斋展' : '') : '第 ' + (slot + 1) + ' 格';
     const isLive = (carrier === 'umbrella' || carrier === 'porcelain') && w.previewUrl;
+    const useThree = carrier === 'porcelain' && w.sourceUrl;
     const imageSrc = isLive ? w.previewUrl : w.dataUrl;
     const liveClass = isLive ? ' gv-live' : '';
+    const media = useThree
+      ? '<canvas class="gv-three" aria-label="旋转瓷瓶"></canvas>'
+      : '<img class="' + liveClass.trim() + '" src="' + imageSrc + '" alt="">';
     return '<div class="gv-card carrier-' + carrier + '" data-id="' + w.id + '">' +
-      '<div class="gv-frame' + (isLive ? ' is-live' : '') + '"><img class="' + liveClass.trim() + '" src="' + imageSrc + '" alt=""></div>' +
+      '<div class="gv-frame' + (isLive || useThree ? ' is-live' : '') + '">' + media + '</div>' +
       (badge ? '<span class="gv-badge">' + badge + '</span>' : '') +
       '<div class="gv-tag">第 ' + w.number + ' 号 · ' + esc(w.mind) + '</div>' +
       '<i class="gv-shelf"></i></div>';
@@ -331,6 +335,7 @@ window.GALLERY = (function () {
     view.querySelector('.gv-share').disabled = !works.length;
     const grid = view.querySelector('.gv-grid');
     const detail = view.querySelector('.gv-detail');
+    if (window.PORCELAIN_GALLERY3D) window.PORCELAIN_GALLERY3D.unmountAll(grid);
     detail.classList.add('hidden');
 
     let html = exhibitHTML(slots);
@@ -350,6 +355,13 @@ window.GALLERY = (function () {
     }
     grid.innerHTML = html;
     grid.classList.remove('hidden');
+    if (window.PORCELAIN_GALLERY3D) {
+      grid.querySelectorAll('.gv-card.carrier-porcelain').forEach(card => {
+        const work = works.find(item => String(item.id) === card.dataset.id);
+        const canvas = card.querySelector('canvas.gv-three');
+        if (work && work.sourceUrl && canvas) window.PORCELAIN_GALLERY3D.mount(canvas, work.sourceUrl);
+      });
+    }
     grid.querySelectorAll('.gv-card').forEach(card => {
       const find = works;
       card.addEventListener('click', () => showDetail(find.find(w => String(w.id) === card.dataset.id)));
@@ -359,6 +371,7 @@ window.GALLERY = (function () {
   function showDetail(w) {
     const detail = view.querySelector('.gv-detail');
     const grid = view.querySelector('.gv-grid');
+    if (window.PORCELAIN_GALLERY3D) window.PORCELAIN_GALLERY3D.unmountAll(grid);
     grid.classList.add('hidden');
     detail.classList.remove('hidden');
     detail.innerHTML =

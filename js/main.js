@@ -264,6 +264,9 @@
     paperCanvas.getContext('2d').drawImage(carried, 0, 0);
     syncUmbrellaPreview();
     syncPorcelainPreview(sheet);
+    if (state.carrier === 'porcelain') {
+      state.sourceUrl = sheet.toDataURL('image/jpeg', .9);
+    }
   }
 
   /* 油纸伞的动态预览：预览层只保留圆形伞面，保存/发笔记仍用 paperCanvas 的静态导出图。 */
@@ -485,6 +488,7 @@
       ts: Date.now(),
       dataUrl: currentCarrierImage('image/jpeg', 0.9),
       previewUrl: currentDynamicPreview(),
+      sourceUrl: state.carrier === 'porcelain' ? state.sourceUrl : '',
     }).then(store => showToast(store === 'ls' ? '已入长物斋 ✓（本机轻量存储）' : '已入长物斋 ✓'))
       .catch(err => showToast('收藏失败 · ' + (err && err.message ? err.message.slice(0, 24) : '请稍后再试')));
   });
